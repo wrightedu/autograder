@@ -9,11 +9,11 @@ from time import sleep
 import traceback
 import logging
 
-testCasesPath = "samplePrograms/testCases/tests.json"
+testCasesPath = "samplePrograms/fahrenheitToCelsius/testCases/tests.json"
 command = "java"
 
-classPath = "samplePrograms"
-graderClassPath = "samplePrograms"
+classPath = "samplePrograms/fahrenheitToCelsius"
+graderClassPath = "samplePrograms/fahrenheitToCelsius"
 
 outputDir = "outputs"
 
@@ -481,7 +481,7 @@ if __name__ == '__main__':
 
     print(testCases)
 
-    for studentNum in range(1):
+    for studentNum in range(26):
         graderOutputs = []
         studentOutputs = []
 
@@ -492,7 +492,7 @@ if __name__ == '__main__':
             # print(test["description"])
 
             graderOutputs.append(genOutput(graderProgram, i, test["description"], test["input"], [
-                                 'java', '-classpath', classPath, graderProgram]).decode("utf-8"))
+                                 'java', '-classpath', graderClassPath, graderProgram]).decode("utf-8"))
             studentOutputs.append(genOutput(studentProgram, i, test["description"], test["input"], [
                                   'java', '-classpath', classPath, studentProgram]).decode("utf-8"))
 
