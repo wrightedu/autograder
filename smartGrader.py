@@ -45,33 +45,33 @@ class SmartGrader():
         else:
             self.typeMismatchPenalty = 20
 
-        if "tokenCountMismatch" in settings["tokenCountMismatch"]:
-            self.tokenCountMismatchPenalty = settings["penalty"]["tokenCountMismatch"]
+        if "tokenCountMismatch" in settings["penalties"]:
+            self.tokenCountMismatchPenalty = settings["penalties"]["tokenCountMismatch"]
         else:
             self.tokenCountMismatch = 50
 
-        if "numericMismatch" in settings["numericMismatch"]:
-            self.numericMismatchPenalty = settings["penalty"]["numericMismatch"]
+        if "numericMismatch" in settings["penalties"]:
+            self.numericMismatchPenalty = settings["penalties"]["numericMismatch"]
         else:
             self.numericMismatch = 10
 
-        if "characterMismatch" in settings["characterMismatch"]:
-            self.characterMismatchPenalty = settings["penalty"]["characterMismatch"]
+        if "characterMismatch" in settings["penalties"]:
+            self.characterMismatchPenalty = settings["penalties"]["characterMismatch"]
         else:
             self.characterMismatch = 5
 
-        if "gradingException" in settings["gradingException"]:
-            self.gradingExceptionPenalty = settings["penalty"]["gradingException"]
+        if "gradingException" in settings["penalties"]:
+            self.gradingExceptionPenalty = settings["penalties"]["gradingException"]
         else:
             self.gradingException = 50
 
-        if "runFailure" in settings["runFailure"]:
-            self.runFailurePenalty = settings["penalty"]["runFailure"]
+        if "runFailure" in settings["penalties"]:
+            self.runFailurePenalty = settings["penalties"]["runFailure"]
         else:
             self.runFailure = 100
 
-        if "compileFailure" in settings["compileFailure"]:
-            self.compileFailurePenalty = settings["penalty"]["compileFailure"]
+        if "compileFailure" in settings["penalties"]:
+            self.compileFailurePenalty = settings["penalties"]["compileFailure"]
         else:
             self.compileFailure = 100
 
@@ -99,16 +99,124 @@ class SmartGrader():
     def analyze(self):
         # TODO Implement this. It will generate the token vector matrices for both
         # TODO  the student and the grader
-        raise NotImplementedError("Give me a minute on this one")
+        
+        # First, make sure that we have the same number of test cases from the grader and the student
+        if len(self.graderOutputs) != len(self.studentOutputs):
+            raise ValueError("Grader and Student must have the same number of test cases")
 
-    def _getTokenVector(self, fromStr, toStr):
+        # Fill in the arrays with empty values
+        self.graderTokens = [None] * len(self.graderOutputs)
+        self.studentTokens = [None] * len(self.studentOutputs)
+
+        for i in range(len(self.graderOutputs)):
+            self.graderTokens[i] = [None] * len(self.graderOutputs)
+            self.studentTokens[i] = [None] * len(self.studentOutputs)
+
+        # Generate all of the token vectors
+        for i in range(len(self.graderOutputs)):
+            for j in range(len(self.graderOutputs)):
+                self.graderTokens[i][j] = self.getTokenVector(self.graderOutputs[i], self.graderOutputs[j])
+                self.studentTokens[i][j] = self.getTokenVector(self.studentOutputs[i], self.studentOutputs[j])
+
+
+
+    def getGrade(self, testCaseNum):
+        if testCaseNum >= len(self.studentOutputs):
+            raise IndexError("Test case number must be less than the number of test cases")
+        
+        totalError = 0
+
+        for i in range(len(self.graderOutputs)):
+            
+            graderTokenVector = self.graderTokens[testCaseNum][i]
+            studentTokenVector = self.studentTokens[testCaseNum][i]
+
+            # TODO Better handling of mismatched token lengths
+            # TODO Better handling of out-of-order/shuffled tokens
+
+            if len(graderTokenVector) != len(studentTokenVector):
+                totalError += self.tokenCountMismatchPenalty
+            
+            tokenCount = min(len(graderTokenVector), len(studentTokenVector))
+
+            for j in range(tokenCount):
+
+                # If the two tokens are of different type, nightmare bad
+                # bad nightmare nightmare bad bad 
+                if type(graderTokenVector[j]) != type(studentTokenVector[j]):
+                    totalError += self.typeMismatchPenalty
+
+                # If the grader and the student vectors are different, 
+                #   also bad
+                elif graderTokenVector[j] != studentTokenVector[j]:
+
+                    # If they are floats, the penalty will be proportional to the
+                    #   percentage difference between them
+                    if isinstance(graderTokenVector[j], float):
+                        if graderTokenVector[j] != 0:
+                            totalError += self.numericMismatchPenalty * abs(
+                                (graderTokenVector[j] - studentTokenVector[j]) / graderTokenVector[j])
+
+                        else:
+                            totalError += self.numericMismatchPenalty * abs(studentTokenVector[j])
+
+                    # If they are strings, the penalty will be proportional to
+                    #   the number of characters that are different
+                    else:
+                        charDiffs = list(ndiff(graderTokenVector[j], studentTokenVector[j]))
+                        for diff in charDiffs:
+                            if diff[0] in '+-':
+                                totalError += self.characterMismatchPenalty
+
+                
+            # TODO I hopefully fixed things so that an error would never actually be thrown during grading
+            # TODO If this is the case, the grading exception penalty can be removed
+
+        totalError /= len(self.studentOutputs)
+
+        return totalError
+
+    def getFeedback(self, testCaseNum):
+        if testCaseNum >= len(self.studentOutputs):
+            raise IndexError("Test case number must be less than the number of test cases")
+        
+        feedback = []
+
+        for i in range(len(self.graderOutputs)):
+            
+            graderTokenVector = self.graderTokens[testCaseNum][i]
+            studentTokenVector = self.studentTokens[testCaseNum][i]
+
+            # TODO Better handling of mismatched token lengths
+            # TODO Better handling of out-of-order/shuffled tokens
+
+            if len(graderTokenVector) != len(studentTokenVector):
+                feedback.append(f"Expected {len(graderTokenVector)} outputs, got {len(studentTokenVector)}")
+            
+            tokenCount = min(len(graderTokenVector), len(studentTokenVector))
+
+            for j in range(tokenCount):
+
+                # If the two tokens are of different type, nightmare bad
+                # bad nightmare nightmare bad bad 
+                if type(graderTokenVector[j]) != type(studentTokenVector[j]):
+                    feedback.append(f"Expected a {type(graderTokenVector[j])}, got a {type(studentTokenVector[j])}")
+
+                # If the grader and the student vectors are different, 
+                #   also bad
+                elif graderTokenVector[j] != studentTokenVector[j]:                   
+                    feedback.append(f"Expected '{graderTokenVector[j]}', got '{studentTokenVector[j]}'")
+
+        return list(set(feedback))
+
+    def getTokenVector(self, fromStr, toStr):
         """ Gets a smart token difference vector. Any words or numbers that change between
             the two strings will be included in the vector, with adjacent words that have all 
             been changed merged into a single string
 
         Arguments:
-            fromStr {string} -- [description]
-            toStr {string} -- [description]
+            fromStr {string} -- The string to get the changes in
+            toStr {string} -- The base string to be compared to
         """
 
         # TODO Maybe add a way to force text that matches a certain regular
@@ -150,11 +258,6 @@ class SmartGrader():
             elif diffs[i][0] == " ":
                 charNum += 1
 
-        print(possibleTokens)
-        for i in possibleTokens:
-            if i["diff"]:
-                print(fromStr[i["start"]:i["end"]])
-
         tokenVector = []
         tokenNum = 0
         tokenStr = ""
@@ -176,11 +279,12 @@ class SmartGrader():
                     tokenVector.append(tokenStr)
 
                     if token["type"] == "number" and token["diff"]:
-                        tokenVector.append(fromStr[token["start"]:token["end"]])
+                        tokenVector.append(float(fromStr[token["start"]:token["end"]]))
                 else:
-                    tokenVector.append(tokenStr)
+                    tokenVector.append(float(tokenStr))
             tokenNum += 1
 
+        return tokenVector
         # TODO you now have a range of where tokens should begin and end
 
 
@@ -218,265 +322,6 @@ def genOutput(programName, testNumber, testDescription, testInput, command, time
     return testResult
 
 
-def smartDiff(a, b):
-    """[summary]
-
-    Arguments:
-        a {[type]} -- The known good output
-        b {[type]} -- The student's output
-    """
-
-    # SmartDiff will only work if the vectors are the same length
-    if len(a) != len(b):
-        print("Something broke")
-
-    # Create matrices to hold the difference vector for each test case
-    aDiffs = [None] * len(a)
-    bDiffs = [None] * len(a)
-    numericDiffs = [None] * len(a)
-
-    for i in range(len(a)):
-        aDiffs[i] = [None] * len(a)
-        bDiffs[i] = [None] * len(a)
-        numericDiffs[i] = [0] * len(a)
-
-    # Generate all the difference vectors
-    for i in range(len(a)):
-        for j in range(len(a)):
-            aDiffs[i][j] = getDiffVector(a[i], a[j])
-            bDiffs[i][j] = getDiffVector(b[i], b[j])
-
-    # Convert the floats to floats
-    for i in range(len(a)):
-        for j in range(len(a)):
-            for k in range(len(aDiffs[i][j])):
-                try:
-                    aDiffs[i][j][k] = float(aDiffs[i][j][k])
-                except ValueError:
-                    pass
-
-            for k in range(len(bDiffs[i][j])):
-                try:
-                    bDiffs[i][j][k] = float(bDiffs[i][j][k])
-                except ValueError:
-                    pass
-
-    for i in range(len(a)):
-        for j in range(len(a)):
-
-            # Apply a penalty if the student had too many or too few "important" bits
-            if len(bDiffs[i][j]) != len(aDiffs[i][j]):
-                numericDiffs[i][j] += KEY_NUM_MISMATCH_PENALTY
-
-            for k in range(min(len(aDiffs[i][j]), len(bDiffs[i][j]))):
-                try:
-
-                    # Apply a penalty if the student printed a string when a num was
-                    #   expected or vice versa
-                    if type(aDiffs[i][j][k]) != type(bDiffs[i][j][k]):
-                        numericDiffs[i][j] += TYPE_MISMATCH_PENALTY
-
-                    if aDiffs[i][j][k] != bDiffs[i][j][k]:
-
-                        # Apply a penalty porportional to the percent difference between
-                        #   the student's number and the teacher's number
-                        if isinstance(aDiffs[i][j][k], float):
-                            if aDiffs[i][j][k] != 0:
-                                numericDiffs[i][j] += abs(
-                                    (aDiffs[i][j][k] - bDiffs[i][j][k]) / aDiffs[i][j][k]) * NUMERIC_MISMATCH_PENALTY
-                            else:
-                                numericDiffs[i][j] += bDiffs[i][j][k] * \
-                                    NUMERIC_MISMATCH_PENALTY
-                        # Apply a penalty based on the number of changed characters
-                        else:
-                            charDiffs = list(
-                                ndiff(aDiffs[i][j][k], bDiffs[i][j][k]))
-                            for diff in charDiffs:
-                                if diff[0] != ' ':
-                                    numericDiffs[i][j] += CHAR_MISMATCH_PENALTY
-                except Exception as e:
-                    print("Caught an exception while grading the student's submission")
-                    print(e)
-                    logging.error(traceback.format_exc())
-                    numericDiffs[i][j] += EXCEPTION_PENALTY
-
-    sumPenalties = 0
-
-    for i in range(len(a)):
-        for j in range(len(a)):
-            sumPenalties += numericDiffs[i][j]
-
-    return sumPenalties
-
-
-def getDiffVector(strA, strB):
-    """ Gets a vector containing the "smart differences" between two strings
-
-    Arguments:
-        strA {string} -- The vector to find the differences in
-        strB {string} -- A base vector to compare to
-    """
-
-    # print(f"Comparing {strA} to {strB}")
-
-    # Compute the differences between the two files
-    diffs = list(ndiff(strA, strB))
-
-    # print(diffs)
-
-    # Compute the difference vector for the first file listed
-    diffVect = []
-
-    isNumRegex = re.compile(r'^-?\d*\.?\d*$')
-
-    # So here's where things get fun. If the differeing characters are non-numeric,
-    #   We want to just parse them into the vector. If the differing characters are
-    #   numeric, however, we want to parse in the _entire_ number that the characters
-    #   are part of.
-    diffString = ''
-    diffNumericPrefix = ''
-    for i in range(len(diffs)):
-
-        # print(diffs[i] + ' ', end='')
-        # If this character was the same between the two strings
-        if diffs[i][0] == ' ':
-
-            # If the non-differeing character is a digit
-            if diffs[i][-1].isdigit():
-                # print("Got an unchanged number")
-
-                # If there is no diff string yet, this could be a number starting
-                #   before the difference was detected
-                if len(diffString) == 0:
-                    if len(diffString) != 0:
-                        diffVect.append(diffString)
-                    diffString = ''
-                    diffNumericPrefix += diffs[i][-1]
-
-                # Else, if there is already a difference string and that difference
-                #   string is a number, extend the difference string
-                elif isNumRegex.match(diffString):
-                    diffString += diffs[i][-1]
-
-                # In any other case, this is to be considered the end of the difference string
-                else:
-                    if len(diffString) != 0:
-                        diffVect.append(diffString)
-                    diffString = ''
-                    diffNumericPrefix = diffs[i][-1]
-
-            # If the non-differing character was a decimal point
-            elif diffs[i][-1] == '.':
-                # print("Got an unchanged .")
-                # If there is no diff string yet, this could be the numeric... etc
-                if len(diffString) == 0:
-                    # TODO Add a zero if the numeric prefix is empty
-                    # TODO slice off anything before a preexisting decimal point
-                    diffNumericPrefix += '.'
-
-                # Else if the difference string is numeric, this could be
-                #   the continuation of it
-                elif isNumRegex.match(diffString) and '.' not in diffString:
-                    diffString += '.'
-
-                # In any other case, this is to be considered the end of the difference string
-                else:
-                    if len(diffString) != 0:
-                        diffVect.append(diffString)
-                    diffString = ''
-                    diffNumericPrefix = '.'
-
-            # IF the non-differeing chaxcradter was a minus sign
-            elif diffs[i][-1] == '-':
-                # print("Got an unchanged -")
-                if len(diffString) != 0:
-                    diffVect.append(diffString)
-                diffString = ''
-                diffNumericPrefix = '-'
-
-            # Else, the non-differing character was completly non-numeric
-            else:
-                # print("Got an unchanged char")
-                # Which means that this should be considered the end of the difference string
-                if len(diffString) != 0:
-                    diffVect.append(diffString)
-                diffString = ''
-                diffNumericPrefix = ''
-
-        # If this character existed in string a but not string b
-        elif diffs[i][0] == '-':
-            # If this chacrater was a digit, it has to be handled specially
-            if diffs[i][-1].isdigit():
-                # print("Got a changed number")
-                # If there is currently no difference string, the difference string will be
-                #   initialized with this digit and whatever is in the numeric prefix
-                if len(diffString) == 0:
-                    diffString = diffNumericPrefix + diffs[i][-1]
-                    diffNumericPrefix = ''
-
-                # Else if the existing diff string is non-numeric, start a new diff string
-                elif not isNumRegex.match(diffString):
-                    if len(diffString) != 0:
-                        diffVect.append(diffString)
-                    diffString = diffs[i][-1]
-                    diffNumericPrefix = ''
-
-                # In any other case, just continue reading in the number
-                else:
-                    diffString += diffs[i][-1]
-
-            # If this character was a decimal point, handle it specially too
-            elif diffs[i][-1] == '.':
-                # print("Got a changed .")
-                # If the current diffString is empty and the numeric prefix doesn't
-                #   contain a '.' this could be the start of a number
-                if len(diffString) == 0 and not '.' not in diffNumericPrefix:
-                    diffString = diffNumericPrefix + '.'
-                    diffNumericPrefix = ''
-
-                # If the existing diff is a number with a decimal point already in it,
-                #   this would mark the end of that number
-                elif isNumRegex.match(diffString) and '.' not in diffString:
-                    if len(diffString) != 0:
-                        diffVect.append(diffString)
-                    diffString = '.'
-                    diffNumericPrefix = ''
-
-                # In any other case, continue on with life as usual
-                else:
-                    diffString += '.'
-
-            # If the new character is neither a number or a .
-            else:
-                # print("Got a changed char")
-                # If there is nothing in the difference string yet, flush the number
-                if len(diffString) == 0:
-                    diffString += diffs[i][-1]
-                    diffNumericPrefix = ''
-
-                # If the difference string up until this point is a number, this is the
-                #   end of that number
-                elif isNumRegex.match(diffString):
-                    if len(diffString) != 0:
-                        diffVect.append(diffString)
-                    diffString = diffs[i][-1]
-                    diffNumericPrefix = ''
-
-                # in any other case, business as usual
-                else:
-                    diffString += diffs[i][-1]
-        # else:
-        #     print("Got a char to skip")
-
-    # If there is any left over difference string that was never added, add it now
-    if len(diffString) != 0:
-        diffVect.append(diffString)
-
-    # print(f"The result was {diffVect}\n\n\n")
-
-    return diffVect
-
-
 def computeGrade(raw):
     return 100 * exp(-PENALTY_SCALING * raw)
 
@@ -487,12 +332,14 @@ if __name__ == '__main__':
 
     print(testCases)
 
+    sg = SmartGrader(testCases["settings"])
+
     for studentNum in range(26):
         graderOutputs = []
         studentOutputs = []
 
         studentProgram = f"Student{studentNum:02}"
-        print(f"Grading student {studentNum}: ", end='', flush=True)
+        print(f"Grading student {studentNum}: ", flush=True)
         i = 0
         for test in testCases["tests"]:
             # print(test["description"])
@@ -504,9 +351,28 @@ if __name__ == '__main__':
 
             i += 1
 
+        sg.graderOutputs = graderOutputs
+        sg.studentOutputs = studentOutputs
+        sg.analyze()
         # print(graderOutputs)
         # print(studentOutputs)
         # round()
 
-        print(
-            f" grade = {computeGrade(smartDiff(graderOutputs, studentOutputs)):2f}")
+        totalPenalty = 0
+        for i in range(len(testCases["tests"])):
+            totalPenalty += sg.getGrade(i)
+            print(f'    {testCases["tests"][i]["description"]}: {sg.getGrade(i):.02f} ')
+            if sg.getGrade(i) > 0:
+                feedback = sg.getFeedback(i)
+                for f in feedback:
+                    print(f'        {f}')
+            else :
+                print('        All good')
+        if totalPenalty > 0:
+            print('    \033[31;1m✘ Some tests failed\033[0m')
+
+        else :
+            print('    \033[32;1m✔ All tests passed\033[0m')
+
+
+        print('')
