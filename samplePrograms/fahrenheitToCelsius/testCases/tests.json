@@ -1,4 +1,19 @@
 {
+    "settings": {
+        "penalties": {
+            "typeMismatch": 20,
+            "tokenCountMismatch": 50,
+            "numericMismatch": 10,
+            "characterMismatch": 5,
+            "gradingException": 50,
+            "runFailure": 100,
+            "compileFailure": 100
+        },
+
+        "penaltyScale": 0.001,
+        "collapseWhitespace": true
+
+    },
     "tests": [
         {
             "description": "Test the example given in the project description",
