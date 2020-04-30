@@ -102,8 +102,14 @@ class SmartGrader():
         raise NotImplementedError("Give me a minute on this one")
 
     def _getTokenVector(self, fromStr, toStr):
-        # gets the token vector of the important changes that are present in the
-        #   'from' string but not the 'to' string
+        """ Gets a smart token difference vector. Any words or numbers that change between
+            the two strings will be included in the vector, with adjacent words that have all 
+            been changed merged into a single string
+
+        Arguments:
+            fromStr {string} -- [description]
+            toStr {string} -- [description]
+        """
 
         # TODO Maybe add a way to force text that matches a certain regular
         # TODO   expression to be considered important?
