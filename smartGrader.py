@@ -184,12 +184,12 @@ class SmartGrader():
 
 
 # # Penalties to apply to mismatches
-# TYPE_MISMATCH_PENALTY = 20
-# # TODO: Provide a smart way of accounting for token vector length mismatches
-# KEY_NUM_MISMATCH_PENALTY = 50
-# CHAR_MISMATCH_PENALTY = 5
-# NUMERIC_MISMATCH_PENALTY = 10
-# EXCEPTION_PENALTY = 100
+TYPE_MISMATCH_PENALTY = 20
+# TODO: Provide a smart way of accounting for token vector length mismatches
+KEY_NUM_MISMATCH_PENALTY = 50
+CHAR_MISMATCH_PENALTY = 5
+NUMERIC_MISMATCH_PENALTY = 10
+EXCEPTION_PENALTY = 100
 # Grade scale. The smaller the more leniant the grades will be
 PENALTY_SCALING = 0.001
 
