@@ -9,7 +9,7 @@ from time import sleep
 import traceback
 import logging
 
-testCasesPath = "samplePrograms/fahrenheitToCelsius/testCases/tests.json"
+testCasesPath = "samplePrograms/fahrenheitToCelsius/tests.json"
 command = "java"
 
 classPath = "samplePrograms/fahrenheitToCelsius"
@@ -59,11 +59,6 @@ class SmartGrader():
             self.characterMismatchPenalty = settings["penalties"]["characterMismatch"]
         else:
             self.characterMismatch = 5
-
-        if "gradingException" in settings["penalties"]:
-            self.gradingExceptionPenalty = settings["penalties"]["gradingException"]
-        else:
-            self.gradingException = 50
 
         if "runFailure" in settings["penalties"]:
             self.runFailurePenalty = settings["penalties"]["runFailure"]
@@ -191,7 +186,7 @@ class SmartGrader():
             # TODO Better handling of out-of-order/shuffled tokens
 
             if len(graderTokenVector) != len(studentTokenVector):
-                feedback.append(f"Expected {len(graderTokenVector)} outputs, got {len(studentTokenVector)}")
+                feedback.append(f"Expected {len(graderTokenVector)} tokens, got {len(studentTokenVector)}")
             
             tokenCount = min(len(graderTokenVector), len(studentTokenVector))
 
@@ -200,7 +195,10 @@ class SmartGrader():
                 # If the two tokens are of different type, nightmare bad
                 # bad nightmare nightmare bad bad 
                 if type(graderTokenVector[j]) != type(studentTokenVector[j]):
-                    feedback.append(f"Expected a {type(graderTokenVector[j])}, got a {type(studentTokenVector[j])}")
+                    if isinstance(graderTokenVector[j], str):
+                        feedback.append(f"Expected a string, got a number")
+                    else:
+                        feedback.append(f"Expected a number, got a string")
 
                 # If the grader and the student vectors are different, 
                 #   also bad
@@ -266,7 +264,7 @@ class SmartGrader():
             token = possibleTokens[tokenNum]
             if token["diff"]:
                 tokenStr = fromStr[token["start"]:token["end"]]
-                if token["type"] == "word" or token["type"] == "space":
+                if (token["type"] == "word" or token["type"] == "space") and tokenNum < len(possibleTokens) - 1:
                     tokenNum += 1
                     token = possibleTokens[tokenNum]
                     while tokenNum < len(possibleTokens) and ((token["type"] == "word" and token["diff"]) or token["type"] == "space"):
@@ -280,99 +278,10 @@ class SmartGrader():
 
                     if token["type"] == "number" and token["diff"]:
                         tokenVector.append(float(fromStr[token["start"]:token["end"]]))
-                else:
+                elif token["type"] == "number":
                     tokenVector.append(float(tokenStr))
+                else:
+                    tokenVector.append(tokenStr)
             tokenNum += 1
 
         return tokenVector
-        # TODO you now have a range of where tokens should begin and end
-
-
-##############################################################################
-######                      END SMART_GRADER CLASS                      ######
-##############################################################################
-
-
-# # Penalties to apply to mismatches
-TYPE_MISMATCH_PENALTY = 20
-# TODO: Provide a smart way of accounting for token vector length mismatches
-KEY_NUM_MISMATCH_PENALTY = 50
-CHAR_MISMATCH_PENALTY = 5
-NUMERIC_MISMATCH_PENALTY = 10
-EXCEPTION_PENALTY = 100
-# Grade scale. The smaller the more leniant the grades will be
-PENALTY_SCALING = 0.001
-
-# TODO mark a flag if this run has a non zero exit code?
-
-
-def genOutput(programName, testNumber, testDescription, testInput, command, timeout=10):
-    inputPipe = Popen(["cat",  "-"], stdin=PIPE, stdout=PIPE)
-    processPipe = Popen(command, stdin=inputPipe.stdout, stdout=PIPE)
-
-    for line in testInput:
-        inputPipe.stdin.write(line.encode("utf-8"))
-
-    inputPipe.stdin.close()
-
-    if processPipe.wait(timeout) is None:
-        processPipe.terminate()
-
-    testResult = processPipe.stdout.read()
-    return testResult
-
-
-def computeGrade(raw):
-    return 100 * exp(-PENALTY_SCALING * raw)
-
-
-if __name__ == '__main__':
-    with open(testCasesPath, 'r') as testCasesFile:
-        testCases = json.loads(testCasesFile.read())
-
-    print(testCases)
-
-    sg = SmartGrader(testCases["settings"])
-
-    for studentNum in range(26):
-        graderOutputs = []
-        studentOutputs = []
-
-        studentProgram = f"Student{studentNum:02}"
-        print(f"Grading student {studentNum}: ", flush=True)
-        i = 0
-        for test in testCases["tests"]:
-            # print(test["description"])
-
-            graderOutputs.append(genOutput(graderProgram, i, test["description"], test["input"], [
-                                 'java', '-classpath', graderClassPath, graderProgram]).decode("utf-8"))
-            studentOutputs.append(genOutput(studentProgram, i, test["description"], test["input"], [
-                                  'java', '-classpath', classPath, studentProgram]).decode("utf-8"))
-
-            i += 1
-
-        sg.graderOutputs = graderOutputs
-        sg.studentOutputs = studentOutputs
-        sg.analyze()
-        # print(graderOutputs)
-        # print(studentOutputs)
-        # round()
-
-        totalPenalty = 0
-        for i in range(len(testCases["tests"])):
-            totalPenalty += sg.getGrade(i)
-            print(f'    {testCases["tests"][i]["description"]}: {sg.getGrade(i):.02f} ')
-            if sg.getGrade(i) > 0:
-                feedback = sg.getFeedback(i)
-                for f in feedback:
-                    print(f'        {f}')
-            else :
-                print('        All good')
-        if totalPenalty > 0:
-            print('    \033[31;1m✘ Some tests failed\033[0m')
-
-        else :
-            print('    \033[32;1m✔ All tests passed\033[0m')
-
-
-        print('')
