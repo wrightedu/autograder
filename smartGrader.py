@@ -208,7 +208,7 @@ class SmartGrader():
         # Get a list of line by line differences
         diffs = """""".join(list(ndiff(fromStr.splitlines(keepends=True), toStr.splitlines(keepends=True))))
         
-        print(diffs)
+        # print(diffs)
         # Get a set of lines 
         matchedLines = [(m.group(1), m.group(2), m.start(0)) for m in re.finditer(r'\- (.*)\n(?:\? .*\n)?\+ (.*)', diffs)]
         unmatchedLines = [(m.group(1), '''''', m.start(0)) for m in re.finditer(r'\- (.*)\n(\-|$)', diffs)]
@@ -219,13 +219,13 @@ class SmartGrader():
 
         # Get the difference tokens from each of the individual lines
         for line in diffLines:
-            print(line)
+            # print(line)
             newTokens = self.getTokenVector(line[0], line[1])
-            for t in newTokens:
-                print(f'    {t}')
+            # for t in newTokens:
+            #     print(f'    {t}')
             tokens += newTokens
 
-        print('\n')
+        # print('\n')
         return tokens
 
 
@@ -265,11 +265,51 @@ class SmartGrader():
 
         possibleTokens.sort(key=lambda x: x["start"])
 
-        diffs = list(ndiff(fromStr, toStr))
+        # Perform a "first pass" over the strings to remove any large chunk of text that might 
+        # be the same between the two strings
+        firstPassDiffs = list(ndiff(fromStr, toStr))
 
-        print (diffs)
+        firstDiff = 0
 
-        charNum = 0
+        for i, diff in enumerate(firstPassDiffs):
+            if diff[0] != ' ':
+                firstDiff = i
+                break
+
+        # We now know where the first difference occurs, but since we're interested in differences
+        #   by token, we're mostly interested in where the token containing this first 
+        #   difference starts
+        for token in possibleTokens:
+            if firstDiff in range(token["start"], token["end"]):
+                firstDiff = token["start"]
+                break
+
+        
+        diffs = list(ndiff(fromStr[firstDiff:], toStr[firstDiff:]))
+
+        # print (diffs)
+        # stringA = ""
+        # stringB = ""
+
+        # for i in diffs:
+        #     if i[0] == '-':
+        #         stringA += i[-1]
+        #     elif i[0] == '+':
+        #         stringB += i[-1]
+        #     else:
+        #         while len(stringA) < len(stringB):
+        #             stringA += 'V'
+        #         while len(stringB) < len(stringA):
+        #             stringB += '^'
+        #         stringA += i[-1]
+        #         stringB += i[-1]
+
+        # for i in range(0,len(stringA), 100):
+        #     print(stringA[i:min(len(stringA)-1,i+100)])
+        #     print(stringB[i:min(len(stringB)-1,i+100)])
+        #     print()
+
+        charNum = firstDiff
         for i in range(len(diffs)):
             if diffs[i][0] == "-":
                 for tokenNum in range(len(possibleTokens)):

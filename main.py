@@ -19,7 +19,6 @@ def genOutput(testInput, command, timeout=10):
     processPoll = select.poll()
     for line in testInput:
         inputPipe.stdin.write(line.encode("utf-8"))
-        sleep(0.1)
 
 
     inputPipe.stdin.close()
