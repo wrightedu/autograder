@@ -193,6 +193,7 @@ class SmartGrader():
                 elif graderTokenVector[j] != studentTokenVector[j]:                   
                     feedback.append(f"Expected '{graderTokenVector[j]}', got '{studentTokenVector[j]}'")
 
+
         return list(set(feedback))
 
     def getTokenVectorsByLine(self, fromStr, toStr):
