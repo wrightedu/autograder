@@ -200,10 +200,14 @@ class SmartGrader():
         tokens = []
 
         # In order for this to work right, both strings _must_ end ina new line
-        if fromStr[-1] != '\n':
+        if len(fromStr) == 0:
+            fromStr = '\n'
+        elif fromStr[-1] != '\n':
             fromStr += '\n'
 
-        if toStr[-1] != '\n':
+        if len(toStr) == 0:
+            fromStr = '\n'
+        elif toStr[-1] != '\n':
             toStr += '\n'
 
         # Get a list of line by line differences
