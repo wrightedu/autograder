@@ -9,18 +9,6 @@ from time import sleep
 import traceback
 import logging
 
-testCasesPath = "samplePrograms/fahrenheitToCelsius/tests.json"
-command = "java"
-
-classPath = "samplePrograms/fahrenheitToCelsius"
-graderClassPath = "samplePrograms/fahrenheitToCelsius"
-
-outputDir = "outputs"
-
-graderProgram = "MasterGrader"
-studentProgram = "Student01"
-
-
 class SmartGrader():
     """A class that uses difference token vectors to automatically determine how well the output
         from a given student submission matches the output from a master teacher program
@@ -110,8 +98,8 @@ class SmartGrader():
         # Generate all of the token vectors
         for i in range(len(self.graderOutputs)):
             for j in range(len(self.graderOutputs)):
-                self.graderTokens[i][j] = self.getTokenVector(self.graderOutputs[i], self.graderOutputs[j])
-                self.studentTokens[i][j] = self.getTokenVector(self.studentOutputs[i], self.studentOutputs[j])
+                self.graderTokens[i][j] = self.getTokenVectorsByLine(self.graderOutputs[i], self.graderOutputs[j])
+                self.studentTokens[i][j] = self.getTokenVectorsByLine(self.studentOutputs[i], self.studentOutputs[j])
 
 
 
@@ -172,6 +160,7 @@ class SmartGrader():
         return totalError
 
     def getFeedback(self, testCaseNum):
+        
         if testCaseNum >= len(self.studentOutputs):
             raise IndexError("Test case number must be less than the number of test cases")
         
@@ -205,7 +194,46 @@ class SmartGrader():
                 elif graderTokenVector[j] != studentTokenVector[j]:                   
                     feedback.append(f"Expected '{graderTokenVector[j]}', got '{studentTokenVector[j]}'")
 
+
         return list(set(feedback))
+
+    def getTokenVectorsByLine(self, fromStr, toStr):
+        tokens = []
+
+        # In order for this to work right, both strings _must_ end ina new line
+        if len(fromStr) == 0:
+            fromStr = '\n'
+        elif fromStr[-1] != '\n':
+            fromStr += '\n'
+
+        if len(toStr) == 0:
+            fromStr = '\n'
+        elif toStr[-1] != '\n':
+            toStr += '\n'
+
+        # Get a list of line by line differences
+        diffs = """""".join(list(ndiff(fromStr.splitlines(keepends=True), toStr.splitlines(keepends=True))))
+        
+        # print(diffs)
+        # Get a set of lines 
+        matchedLines = [(m.group(1), m.group(2), m.start(0)) for m in re.finditer(r'(^|\n)\- (.*)\n(?:\? .*\n)?\+ (.*)', diffs)]
+        unmatchedLines = [(m.group(1), '''''', m.start(0)) for m in re.finditer(r'(^|\n)\- (.*)\n(\-|$)', diffs)]
+
+        diffLines = matchedLines + unmatchedLines
+        diffLines.sort(key=lambda x: x[2])
+
+
+        # Get the difference tokens from each of the individual lines
+        for line in diffLines:
+            # print(line)
+            newTokens = self.getTokenVector(line[0], line[1])
+            # for t in newTokens:
+            #     print(f'    {t}')
+            tokens += newTokens
+
+        # print('\n')
+        return tokens
+
 
     def getTokenVector(self, fromStr, toStr):
         """ Gets a smart token difference vector. Any words or numbers that change between
@@ -243,15 +271,64 @@ class SmartGrader():
 
         possibleTokens.sort(key=lambda x: x["start"])
 
-        diffs = list(ndiff(fromStr, toStr))
+        # Perform a "first pass" over the strings to remove any large chunk of text that might 
+        # be the same between the two strings
+        firstPassDiffs = list(ndiff(fromStr, toStr))
 
-        charNum = 0
+        firstDiff = 0
+
+        for i, diff in enumerate(firstPassDiffs):
+            if diff[0] != ' ':
+                firstDiff = i
+                break
+
+        # We now know where the first difference occurs, but since we're interested in differences
+        #   by token, we're mostly interested in where the token containing this first 
+        #   difference starts
+        for token in possibleTokens:
+            if firstDiff in range(token["start"], token["end"]):
+                firstDiff = token["start"]
+                break
+
+        
+        diffs = list(ndiff(fromStr[firstDiff:], toStr[firstDiff:]))
+
+        # print (diffs)
+        # stringA = ""
+        # stringB = ""
+
+        # for i in diffs:
+        #     if i[0] == '-':
+        #         stringA += i[-1]
+        #     elif i[0] == '+':
+        #         stringB += i[-1]
+        #     else:
+        #         while len(stringA) < len(stringB):
+        #             stringA += 'V'
+        #         while len(stringB) < len(stringA):
+        #             stringB += '^'
+        #         stringA += i[-1]
+        #         stringB += i[-1]
+
+        # for i in range(0,len(stringA), 100):
+        #     print(stringA[i:min(len(stringA)-1,i+100)])
+        #     print(stringB[i:min(len(stringB)-1,i+100)])
+        #     print()
+
+        charNum = firstDiff
         for i in range(len(diffs)):
             if diffs[i][0] == "-":
                 for tokenNum in range(len(possibleTokens)):
                     if charNum in list(range(possibleTokens[tokenNum]["start"], possibleTokens[tokenNum]["end"])):
                         possibleTokens[tokenNum]["diff"] = True
                 charNum += 1
+
+            elif diffs[i][0] == '+':
+                for tokenNum in range(len(possibleTokens)):
+                    if charNum in list(range(possibleTokens[tokenNum]["start"], possibleTokens[tokenNum]["end"])):
+                        possibleTokens[tokenNum]["diff"] = True
+                    elif charNum - 1 in list(range(possibleTokens[tokenNum]["start"], possibleTokens[tokenNum]["end"])):
+                        possibleTokens[tokenNum]['diff'] = True
 
             elif diffs[i][0] == " ":
                 charNum += 1
@@ -272,7 +349,8 @@ class SmartGrader():
                             tokenStr += " "
                         tokenStr += fromStr[token["start"]:token["end"]]
                         tokenNum += 1
-                        token = possibleTokens[tokenNum]
+                        if tokenNum < len(possibleTokens):
+                            token = possibleTokens[tokenNum]
 
                     tokenVector.append(tokenStr)
 

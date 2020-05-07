@@ -1,0 +1,55 @@
+{
+    "settings": {
+        "penalties": {
+            "typeMismatch": 20,
+            "tokenCountMismatch": 50,
+            "numericMismatch": 1000,
+            "characterMismatch": 1,
+            "runFailure": 100,
+            "compileFailure": 100
+        },
+
+        "penaltyWeight": 0.1,
+        "passThreshold": 99.5,
+        "collapseWhitespace": true
+
+    },
+    "tests": [
+        {
+            "description": "Test the example given in the project description",
+            "input": ["12.1\n", "8.7\n", "3.6\n"]
+        },
+        {
+            "description": "Test having a lot of extra digits",
+            "input": ["22.193579856785638\n", "16.754467254837564986\n", "5.534765823756937856348956\n"]
+        },
+        {
+            "description": "Test a very long and skinny prism",
+            "input": ["1.2\n", "1234.2\n", "2.74\n"]
+        },
+        {
+            "description": "Test a very flat prism",
+            "input": ["129.34\n", "0.7\n", "428.23\n"]
+        },
+        {
+            "description": "Test a very small prism",
+            "input": ["0.1\n", "0.1\n", "0.1\n"]
+        },
+        {
+            "description": "Test some random numbers",
+            "input": ["245.12\n", "272.53\n", "110.75\n"]
+        },
+        {
+            "description": "Test a prism with no length",
+            "input": ["0\n", "34\n", "67\n"]
+        },
+        {
+            "description": "Test a prism with no width",
+            "input": ["78\n", "0\n", "23\n"]
+        },
+        {
+            "description": "Test a prism with no height",
+            "input": ["83\n", "38\n", "0\n"]
+        }
+    ]
+}

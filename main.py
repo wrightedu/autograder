@@ -5,6 +5,7 @@ import os
 from math import exp
 from smartGrader import SmartGrader
 from subprocess import Popen, PIPE
+from time import sleep 
 
 def convertPenaltyToGrade(penalty, weight):
     return 100 * exp(-weight * penalty)
@@ -13,6 +14,7 @@ def genOutput(testInput, command, timeout=10):
     inputPipe = Popen(["cat",  "-"], stdin=PIPE, stdout=PIPE)
     processPipe = Popen(command, stdin=inputPipe.stdout, stdout=PIPE)
 
+    # TODO Maybe have a new line inserted after every print in?
     for line in testInput:
         inputPipe.stdin.write(line.encode("utf-8"))
 
