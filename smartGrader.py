@@ -101,8 +101,6 @@ class SmartGrader():
                 self.graderTokens[i][j] = self.getTokenVectorsByLine(self.graderOutputs[i], self.graderOutputs[j])
                 self.studentTokens[i][j] = self.getTokenVectorsByLine(self.studentOutputs[i], self.studentOutputs[j])
 
-
-
     def getGrade(self, testCaseNum):
         if testCaseNum >= len(self.studentOutputs):
             raise IndexError("Test case number must be less than the number of test cases")
@@ -200,25 +198,32 @@ class SmartGrader():
     def getTokenVectorsByLine(self, fromStr, toStr):
         tokens = []
 
-        # In order for this to work right, both strings _must_ end ina new line
-        if len(fromStr) == 0:
-            fromStr = '\n'
-        elif fromStr[-1] != '\n':
-            fromStr += '\n'
+        # In order for this to work right, both strings _must_ end in a new line
+        # if len(fromStr) == 0:
+        #     fromStr = '\n'
+        # elif fromStr[-1] != '\n':
+        #     fromStr += '\n'
 
-        if len(toStr) == 0:
-            fromStr = '\n'
-        elif toStr[-1] != '\n':
-            toStr += '\n'
+        # if len(toStr) == 0:
+        #     toStr = '\n'
+        # elif toStr[-1] != '\n':
+        #     toStr += '\n'
+
+        fromStr += '\n'
+        toStr += '\n'
 
         # Get a list of line by line differences
-        diffs = """""".join(list(ndiff(fromStr.splitlines(keepends=True), toStr.splitlines(keepends=True))))
+        # print([i + '\n' for i in fromStr.splitlines()])
+        # print([i + '\n' for i in toStr.splitlines()], end='\n\n')
+        diffs = ''.join(list(ndiff([i + '\n' for i in fromStr.splitlines()], [i + '\n' for i in toStr.splitlines()])))
         
         # print(diffs)
         # Get a set of lines 
-        matchedLines = [(m.group(1), m.group(2), m.start(0)) for m in re.finditer(r'(^|\n)\- (.*)\n(?:\? .*\n)?\+ (.*)', diffs)]
-        unmatchedLines = [(m.group(1), '''''', m.start(0)) for m in re.finditer(r'(^|\n)\- (.*)\n(\-|$)', diffs)]
+        matchedLines = [(m.group(1), m.group(2), m.start(0)) for m in re.finditer(r'(?:^|\n)\- (.*)\n(?:\? .*\n)?\+ (.*)', diffs)]
+        unmatchedLines = [(m.group(1), '''''', m.start(0)) for m in re.finditer(r'(?:^|\n)\- (.*)\n(\-|$)', diffs)]
 
+        # print('matched', matchedLines)
+        # print('unmatched', unmatchedLines)
         diffLines = matchedLines + unmatchedLines
         diffLines.sort(key=lambda x: x[2])
 
@@ -233,7 +238,6 @@ class SmartGrader():
 
         # print('\n')
         return tokens
-
 
     def getTokenVector(self, fromStr, toStr):
         """ Gets a smart token difference vector. Any words or numbers that change between
