@@ -1,7 +1,6 @@
 import argparse
 import json
 import os
-import select
 
 from math import exp
 from smartGrader import SmartGrader
@@ -16,10 +15,8 @@ def genOutput(testInput, command, timeout=10):
     processPipe = Popen(command, stdin=inputPipe.stdout, stdout=PIPE)
 
     # TODO Maybe have a new line inserted after every print in?
-    processPoll = select.poll()
     for line in testInput:
         inputPipe.stdin.write(line.encode("utf-8"))
-
 
     inputPipe.stdin.close()
 
