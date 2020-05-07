@@ -101,6 +101,69 @@ class SmartGrader():
                 self.graderTokens[i][j] = self.getTokenVectorsByLine(self.graderOutputs[i], self.graderOutputs[j])
                 self.studentTokens[i][j] = self.getTokenVectorsByLine(self.studentOutputs[i], self.studentOutputs[j])
 
+        print ("\n ----- GRADER TOKENS ----- ")
+        for i in range(len(self.graderOutputs)):
+            print(f'  Test case {i}')
+            for j in range(len(self.graderOutputs)):
+                print(f'    {self.graderTokens[i][j]}')
+
+        print ("\n ----- STUDENT TOKENS ----- ")
+        for i in range(len(self.graderOutputs)):
+            print(f'  Test case {i}')
+            for j in range(len(self.graderOutputs)):
+                print(f'    {self.studentTokens[i][j]}')
+
+        print('\n\n')
+
+    def _getGradeIgnoringTokenCount(self, testCaseNum):
+        if testCaseNum >= len(self.studentOutputs):
+            raise IndexError("Test case number must be less than the number of test cases")
+        
+        totalError = 0
+
+        for i in range(len(self.graderOutputs)):
+            
+            graderTokenVector = self.graderTokens[testCaseNum][i]
+            studentTokenVector = self.studentTokens[testCaseNum][i]
+            
+            tokenCount = min(len(graderTokenVector), len(studentTokenVector))
+
+            for j in range(tokenCount):
+
+                # If the two tokens are of different type, nightmare bad
+                # bad nightmare nightmare bad bad 
+                if type(graderTokenVector[j]) != type(studentTokenVector[j]):
+                    totalError += self.typeMismatchPenalty
+
+                # If the grader and the student vectors are different, 
+                #   also bad
+                elif graderTokenVector[j] != studentTokenVector[j]:
+
+                    # If they are floats, the penalty will be proportional to the
+                    #   percentage difference between them
+                    if isinstance(graderTokenVector[j], float):
+                        if graderTokenVector[j] != 0:
+                            totalError += self.numericMismatchPenalty * abs((graderTokenVector[j] - studentTokenVector[j]) / graderTokenVector[j])
+
+                        else:
+                            totalError += self.numericMismatchPenalty * abs(studentTokenVector[j])
+
+                    # If they are strings, the penalty will be proportional to
+                    #   the number of characters that are different
+                    else:
+                        charDiffs = list(ndiff(graderTokenVector[j], studentTokenVector[j]))
+                        for diff in charDiffs:
+                            if diff[0] in '+-':
+                                totalError += self.characterMismatchPenalty
+
+                
+            # TODO I hopefully fixed things so that an error would never actually be thrown during grading
+            # TODO If this is the case, the grading exception penalty can be removed
+
+        totalError /= len(self.studentOutputs)
+
+        return totalError
+
     def getGrade(self, testCaseNum):
         if testCaseNum >= len(self.studentOutputs):
             raise IndexError("Test case number must be less than the number of test cases")
@@ -263,7 +326,7 @@ class SmartGrader():
 
         possibleTokens = []
 
-        alphaTokens = [{"start": m.start(0), "end": m.end(0), "type": "word", "diff": False} for m in filter(lambda x: x.group(0) != '.', re.finditer(r'[^\s\d]+', fromStr))] 
+        alphaTokens = [{"start": m.start(0), "end": m.end(0), "type": "word", "diff": False} for m in filter(lambda x: x.group(0) != '.', re.finditer(r'([^\s\d-]|-(?!\d))+', fromStr))] 
         numberTokens = [{"start": m.start(0), "end": m.end(0), "type": "number", "diff": False} for m in re.finditer(r'-?\d*\.?\d+', fromStr)]
 
         # Find the start and end of all blocks of whitespace if we aren't collapsing whitespace

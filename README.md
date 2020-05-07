@@ -17,7 +17,6 @@ Each assignment directory needs to contain a master grader program to produce kn
     - `numericMismatch`: A penalty to be applied proportionally the the percent difference between a student generated numeric output and the expected numeric output.
     - `characterMismatch`: A penalty to be applied proportionally to the number of characters that are different between a student generated string output and the expected string output.
     - `runFailure`: The penalty to apply when the student program raises a run time exception (__TODO__: Not yet implemented)
-    - `compileFailure`: The penalty to apply when the student program fails to compile (__TODO__: Not yet implemented)
   - `penaltyWeight`: Used to translate the student's accumulated penalty to a 'grade'. The equation used is `grade = 100 * exp(-weight * penalty)`
   - `passThreshold`: The minimum computed grade required for a given test case to be considered passing
   - `collapseWhitespace`: A boolean value that when true tells the grader that differences in whitespace is to be considered important. When false, all whitespace is treated as a single space.
