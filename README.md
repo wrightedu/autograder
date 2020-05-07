@@ -38,9 +38,9 @@ The auto-grader will then try to read in the configuration and student files. If
 
 ## Screenshots
 
-[Screenshot showing the first part of manual auto-grading](https://cdn.discordapp.com/attachments/701797448414265405/708065450386391140/unknown.png "Screenshot 1")
+![Screenshot showing the first part of manual auto-grading](https://cdn.discordapp.com/attachments/701797448414265405/708065450386391140/unknown.png "Screenshot 1")
 
-[Screenshot showing the second part of manual auto-grading](https://cdn.discordapp.com/attachments/701797448414265405/708065511317045248/unknown.png "Screenshot 1")
+![Screenshot showing the second part of manual auto-grading](https://cdn.discordapp.com/attachments/701797448414265405/708065511317045248/unknown.png "Screenshot 1")
 
 
 ## TODOs
