@@ -193,7 +193,7 @@ if __name__ == '__main__':
         elif grade >= sg.passThreshold:
             print(f'\033[32;1m✔\033[0m ({i}) {test["description"]}:')
             testsPassed += 1
-            print (f'\033[2;3m{min(grade, 99.99):-3.0f}%\033[0m', end='')
+            print (f'\033[2;3m{min(grade, 99):-3.0f}%\033[0m', end='')
             feedback = sg.getFeedback(i)
             firstFeedback = True
             for f in feedback:
@@ -201,7 +201,7 @@ if __name__ == '__main__':
                 firstFeedback = False
         else:
             print(f'\033[31;1m✘\033[0m ({i}) {test["description"]}:')
-            print (f'\033[2;3m{min(grade, 99.99):-3.0f}%\033[0m', end='')
+            print (f'\033[2;3m{min(grade, 99):-3.0f}%\033[0m', end='')
             feedback = sg.getFeedback(i)
             firstFeedback = True
             for f in feedback:
