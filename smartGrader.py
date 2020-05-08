@@ -11,6 +11,7 @@ import logging
 
 DEBUG = False
 PRINT_TOKENS = False
+PRINT_OUTPUTS = False
 
 class SmartGrader():
     """A class that uses difference token vectors to automatically determine how well the output
@@ -98,6 +99,15 @@ class SmartGrader():
         if len(self.graderOutputs) != len(self.studentOutputs):
             raise ValueError("Grader and Student must have the same number of test cases")
 
+        if DEBUG or PRINT_OUTPUTS:
+            print('\n ----- GRADER OUTPUTS -----')
+            for i in self.graderOutputs:
+                print(i)
+            print('\n ----- STUDENT OUTPUTS -----')
+            for i in self.studentOutputs:
+                print(i)
+            print('\n\n')
+
         # Fill in the arrays with empty values
         self.graderTokens = [None] * len(self.graderOutputs)
         self.studentTokens = [None] * len(self.studentOutputs)
@@ -108,6 +118,8 @@ class SmartGrader():
 
         # Generate all of the token vectors
         for i in range(len(self.graderOutputs)):
+            if DEBUG:
+                print(f'\n\n\n ---------- TEST CASE {i} ----------\n\n')
             for j in range(len(self.graderOutputs)):
                 self.graderTokens[i][j] = self.getTokenVectorsByLine(self.graderOutputs[i], self.graderOutputs[j])
                 self.studentTokens[i][j] = self.getTokenVectorsByLine(self.studentOutputs[i], self.studentOutputs[j])
@@ -405,11 +417,15 @@ class SmartGrader():
                 charNum += 1
 
             elif diffs[i][0] == '+':
-                for tokenNum in range(len(possibleTokens)):
-                    if charNum in list(range(possibleTokens[tokenNum]["start"], possibleTokens[tokenNum]["end"])):
+                for tokenNum, token in enumerate(possibleTokens):
+                    if charNum in list(range(token["start"], token["end"])):
                         possibleTokens[tokenNum]["diff"] = True
-                    elif charNum - 1 in list(range(possibleTokens[tokenNum]["start"], possibleTokens[tokenNum]["end"])):
-                        possibleTokens[tokenNum]['diff'] = True
+                    elif charNum - 1 in list(range(token["start"], token["end"])):
+                        # TODO This sometimes causes false positives (see issue #9)
+                        # TODO This if statement will solve some of the issues, but not all of them
+                        # TODO This should only cause issues when charNum and charNum - 1are in two different tokens
+                        if charNum - 1 >= firstDiff:
+                            possibleTokens[tokenNum]['diff'] = True
 
             elif diffs[i][0] == " ":
                 charNum += 1
@@ -433,13 +449,14 @@ class SmartGrader():
                         if tokenNum < len(possibleTokens):
                             token = possibleTokens[tokenNum]
 
-                    tokenVector.append(tokenStr)
+                    if self.characterMismatchPenalty != 0:
+                        tokenVector.append(tokenStr)
 
-                    if token["type"] == "number" and token["diff"]:
+                    if token["type"] == "number" and token["diff"] and self.numericMismatchPenalty != 0:
                         tokenVector.append(float(fromStr[token["start"]:token["end"]]))
-                elif token["type"] == "number":
+                elif token["type"] == "number" and self.numericMismatchPenalty != 0:
                     tokenVector.append(float(tokenStr))
-                else:
+                elif self.characterMismatchPenalty != 0:
                     tokenVector.append(tokenStr)
             tokenNum += 1
 
