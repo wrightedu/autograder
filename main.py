@@ -17,6 +17,12 @@ from pygments.lexers import get_lexer_by_name
 from pygments.formatters import TerminalFormatter
 
 
+def printFormattedText(text):
+    if os.name == 'nt':
+        print(re.sub(r'\033\[.*?m', '', text))
+    else:
+        print(text)
+
 def tree(rootDir, catFiles=True, language='java', recursionLevel=0):
     if catFiles:
         for file in os.listdir(rootDir):
@@ -26,18 +32,18 @@ def tree(rootDir, catFiles=True, language='java', recursionLevel=0):
                 if not isBinary(join(rootDir, file)):
                     ext = file[file.rfind('.'):]
                     if ext in ['.java', '.py', '.c', '.cpp', '.sh', '.bash']:
-                        print('\033[1;4m' + join(rootDir, file), '\033[0m')
+                        printFormattedText(f'\033[1;4m{join(rootDir, file)}\033[0m')
                         with open(join(rootDir, file)) as f:
                             text = f.read()
                             text = text.replace('\t', '    ')
                             lexer = get_lexer_by_name(language, stripall=True)
                             formatter = TerminalFormatter(linenos=True)
-                            print(highlight(text, lexer, formatter))
+                            printFormattedText(highlight(text, lexer, formatter))
                         print('\n\n\n')
                 
     else:
         if recursionLevel == 0:
-            print('\033[1;4mProject Directory Listing\033[0m')
+            printFormattedText('\033[1;4mProject Directory Listing\033[0m')
         print(recursionLevel * '    ' + os.path.basename(rootDir) + '/')
         for file in os.listdir(rootDir):
             if os.path.isdir(join(rootDir, file)):
@@ -73,12 +79,11 @@ def generateOutputs(binDir, programPath, testCases, language='java', timeout=5):
         command = ['java', '-cp', binDir, programPath]
         outputs = []
         for test in testCases:
-            inputPipe = subprocess.Popen(["cat",  "-"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-            processPipe = subprocess.Popen(command, stdin=inputPipe.stdout, stdout=subprocess.PIPE)
+            processPipe = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
-            inputPipe.stdin.write(test["input"].encode("utf-8"))
+            processPipe.stdin.write(test["input"].encode("utf-8"))
 
-            inputPipe.stdin.close()
+            processPipe.stdin.close()
 
             if processPipe.wait(timeout) is None:
                 processPipe.terminate()
@@ -149,8 +154,8 @@ if __name__ == '__main__':
     for dirName, subdirList, fileList in os.walk(args.project_directory):
         for fname in fileList:
             program = join(dirName, fname)
-            if 'bin/' in program:
-                program = program[program.find('bin/') + 4:]
+            if 'bin' + os.sep in program:
+                program = program[program.find('bin' + os.sep) + 4:]
                 studentPrograms.append(program)
     studentProgramPath = studentPrograms[0]
     if len(studentPrograms) > 1:
@@ -179,29 +184,29 @@ if __name__ == '__main__':
     totalGrade = 0
     testsPassed = 0
 
-    print('\033[1;4mTest Case Results\033[0m\n')
+    printFormattedText('\033[1;4mTest Case Results\033[0m\n')
     for i, test in enumerate(configs["tests"]):
         grade = sg.getGrade(i)
 
         totalGrade += grade
 
         if grade == 100:
-            print(f'\033[32;1m✔\033[0m ({i}) {test["description"]}:')
+            printFormattedText(f'\033[32;1m✔\033[0m ({i}) {test["description"]}:')
             testsPassed += 1
-            print (f'\033[2;3m{grade:-3.0f}%\033[0m')
+            printFormattedText (f'\033[2;3m{grade:-3.0f}%\033[0m')
             # TODO Maybe print out what the correct output was?
         elif grade >= sg.passThreshold:
-            print(f'\033[32;1m✔\033[0m ({i}) {test["description"]}:')
+            printFormattedText(f'\033[32;1m✔\033[0m ({i}) {test["description"]}:')
             testsPassed += 1
-            print (f'\033[2;3m{min(grade, 99):-3.0f}%\033[0m', end='')
+            printFormattedText (f'\033[2;3m{min(grade, 99):-3.0f}%\033[0m', end='')
             feedback = sg.getFeedback(i)
             firstFeedback = True
             for f in feedback:
                 print(f'    {f}' if firstFeedback else f'        {f}')
                 firstFeedback = False
         else:
-            print(f'\033[31;1m✘\033[0m ({i}) {test["description"]}:')
-            print (f'\033[2;3m{min(grade, 99):-3.0f}%\033[0m', end='')
+            printFormattedText(f'\033[31;1m✘\033[0m ({i}) {test["description"]}:')
+            printFormattedText (f'\033[2;3m{min(grade, 99):-3.0f}%\033[0m', end='')
             feedback = sg.getFeedback(i)
             firstFeedback = True
             for f in feedback:
@@ -211,8 +216,8 @@ if __name__ == '__main__':
 
     averageGrade = totalGrade / len(configs["tests"])
 
-    print(f'\033[1mTests Passed: [{testsPassed}/{len(configs["tests"])}]')
-    print(f'Overall Grade: {averageGrade:.02f}%\033[0m\n')
+    printFormattedText(f'\033[1mTests Passed: [{testsPassed}/{len(configs["tests"])}]')
+    printFormattedText(f'Overall Grade: {averageGrade:.02f}%\033[0m\n')
 
 
     if averageGrade >= sg.passThreshold:
