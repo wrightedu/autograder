@@ -89,11 +89,22 @@ class SmartGrader():
         self.studentTokens = None
 
     def convertPenaltyToGrade(self, penalty):
+        """Uses an exponential decay to convert the student's accumulated penalty to a letter grade
+
+        Arguments:
+            penalty {float} -- The accumulated penalty
+
+        Returns:
+            float -- The grade associated with that penalty
+        """
         return 100 * exp(-self.penaltyWeight * penalty)
 
     def analyze(self):
-        # TODO Implement this. It will generate the token vector matrices for both
-        # TODO  the student and the grader
+        """Performs a full grading analysis of the provided inputs and outputs
+
+        Raises:
+            ValueError: Raised if there are a different number of grader and student outputs
+        """
         
         # First, make sure that we have the same number of test cases from the grader and the student
         if len(self.graderOutputs) != len(self.studentOutputs):
@@ -140,6 +151,9 @@ class SmartGrader():
             print('\n\n')
 
     def _getGradeIgnoringTokenCount(self, testCaseNum):
+        """Internal function used to get a rough hack at which 
+            solutions are "incorrect" before doing a full comparison
+        """
         if testCaseNum >= len(self.studentOutputs):
             raise IndexError("Test case number must be less than the number of test cases")
         
@@ -189,6 +203,18 @@ class SmartGrader():
         return self.convertPenaltyToGrade(totalError)
 
     def getGrade(self, testCaseNum):
+        """ Gets the computed grade that the student received for a given test case
+
+        Arguments:
+            testCaseNum {int} -- The test case to get the grade for
+
+        Raises:
+            IndexError: Raised if the specified test case is larger than the number of test cases
+
+        Returns:
+            float -- The grade received for the specified test case
+        """
+
         if testCaseNum >= len(self.studentOutputs):
             raise IndexError("Test case number must be less than the number of test cases")
         
@@ -251,6 +277,17 @@ class SmartGrader():
         return self.convertPenaltyToGrade(totalError)
 
     def getFeedback(self, testCaseNum):
+        """Gets some basic feedback on what the student got wrong for a certain test case
+
+        Arguments:
+            testCaseNum {int} -- The test case to get feedback for
+
+        Raises:
+            IndexError: Raised if the specified test case index is out of bounds
+
+        Returns:
+            list -- A list of strings containing the feedback
+        """
         
         if testCaseNum >= len(self.studentOutputs):
             raise IndexError("Test case number must be less than the number of test cases")
@@ -297,6 +334,15 @@ class SmartGrader():
         return feedback
 
     def getTokenVectorsByLine(self, fromStr, toStr):
+        """A better way of getting difference tokens if the output conatins more than one line
+
+        Arguments:
+            fromStr {str} -- The string to get the changes in
+            toStr {str} -- The base string to compare fromStr to
+
+        Returns:
+            list -- A list containing all of the differences
+        """
         tokens = []
 
         # Get a list of line by line differences
