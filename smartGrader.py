@@ -64,6 +64,7 @@ class SmartGrader():
         else:
             self.compileFailure = 100
 
+        # More stuff from settings
         if "penaltyWeight" in settings:
             self.penaltyWeight = settings["penaltyWeight"]
         else:
@@ -74,15 +75,20 @@ class SmartGrader():
         else:
             self.passThreshold = 95
 
-        # More stuff from settings
         if "collapseWhitespace" in settings:
             self.collapseWhitespace = settings["collapseWhitespace"]
         else:
             self.collapseWhitespace = True
 
-        # TODO Add this to the config
-        self.gradeForIntFloat = False
-        self.combineDifferences = True
+        if "enforceFloatingPoint" in settings:
+            self.gradeForIntFloat = settings["enforceFloatingPoint"]
+        else:
+            self.gradeForIntFloat = False
+
+        if "unifiedDifferenceChecking" in settings:
+            self.combineDifferences = settings["unifiedDifferenceChecking"]
+        else:
+            self.combineDifferences = True
 
         ###### Store the output vectors ######
         self.graderOutputs = graderOutputs
