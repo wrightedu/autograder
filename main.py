@@ -17,9 +17,9 @@ from pygments.formatters import TerminalFormatter
 
 
 def printFormattedText(text, end='\n'):
-    """Used to print ansi formatted text in a cross-platform way
-        Basically, this strips all ansi formatting if the program is being run
-        on Windows, because windows doesn't really like ansi by default
+    """Used to print ANSI formatted text in a cross-platform way
+        Basically, this strips all ANSI formatting if the program is being run
+        on Windows, because windows doesn't really like ANSI by default
 
 
     Arguments:
@@ -108,7 +108,7 @@ def compile(projectDir, language='java'):
         else:
             return True
 
-    print('\nMake unsuccesful, attempting to build with internal compiler')
+    print('\nMake unsuccessful, attempting to build with internal compiler')
 
     fromDir, toDir =join(projectDir, 'src'), join(projectDir, 'bin')
 
@@ -131,7 +131,7 @@ def compile(projectDir, language='java'):
         for dirName, subdirList, fileList in os.walk(fromDir):
             for fname in fileList:
                 if os.path.splitext(fname)[1] in ['.py', '.sh', '.bash', '.pl', '']:
-                    # Ignore any part of the dir name that is part of fromdir
+                    # Ignore any part of the directory name that is part of fromDir
                     shortDirName = dirName[len(os.path.commonpath(fromDir, dirName)):]
                     copyfile(join(dirName, fname), join(toDir, shortDirName, fname))
 
@@ -273,8 +273,6 @@ if __name__ == '__main__':
     sg.graderOutputs = graderOutputs
     sg.studentOutputs = studentOutputs
     sg.analyze()
-    
-    # TODO Have it only grade certain test cases maybe? Add a flag?
 
     totalGrade = 0
     testsPassed = 0
@@ -289,7 +287,6 @@ if __name__ == '__main__':
             printFormattedText(f'\033[32;1m✔\033[0m ({i}) {test["description"]}:')
             testsPassed += 1
             printFormattedText (f'\033[2;3m{grade:-3.0f}%\033[0m')
-            # TODO Maybe print out what the correct output was?
         elif grade >= sg.passThreshold:
             printFormattedText(f'\033[32;1m✔\033[0m ({i}) {test["description"]}:')
             testsPassed += 1
@@ -321,7 +318,11 @@ if __name__ == '__main__':
             if sg.getGrade(i) < sg.passThreshold:
                 printFormattedText(f'\n\033[1m{test["description"]}:\033[0m\n')
 
-                graderTokens, studentTokens = sg.getCombinedVectors(i)
+                testCasePassed = []
+                for output in studentOutputs:
+                    testCasePassed.append(output[1] == 0)
+
+                graderTokens, studentTokens = sg.getCombinedVectors(i, testCasePassed)
 
                 lastTokenEnd = 0
 

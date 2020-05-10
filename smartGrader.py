@@ -169,15 +169,17 @@ class SmartGrader():
 
             print('\n\n')
 
-    def getCombinedVectors(self, testCaseNum):
+    def getCombinedVectors(self, testCaseNum, mask=None):
         combinedGraderVectors = []
         combinedStudentVectors = []
 
-        for vect in  self.graderTokens[testCaseNum]:
-            combinedGraderVectors += vect
+        for i, vect in enumerate(self.graderTokens[testCaseNum]):
+            if mask is None or mask[i]:
+                combinedGraderVectors += vect
 
-        for vect in self.studentTokens[testCaseNum]:
-            combinedStudentVectors += vect
+        for i, vect in enumerate(self.studentTokens[testCaseNum]):
+            if mask is None or mask[i]:
+                combinedStudentVectors += vect
 
         combinedGraderVectors = list(set(combinedGraderVectors))
         combinedStudentVectors = list(set(combinedStudentVectors))
@@ -333,7 +335,10 @@ class SmartGrader():
             totalError /= len(self.studentOutputs)
 
         else:
-            graderTokenVector, studentTokenVector = self.getCombinedVectors(testCaseNum)
+            testCasePassed = []
+            for i in self.studentOutputs:
+                testCasePassed.append(i[1] == 0)
+            graderTokenVector, studentTokenVector = self.getCombinedVectors(testCaseNum, testCasePassed)
             totalError, _ = self._gradeTokenVectors(graderTokenVector, studentTokenVector, testCaseNum, False)
                 
 
@@ -371,7 +376,10 @@ class SmartGrader():
                 feedback += newFeedback
 
         else:
-            graderTokenVector, studentTokenVector = self.getCombinedVectors(testCaseNum)
+            testCasePassed = []
+            for i in self.studentOutputs:
+                testCasePassed.append(i[1] == 0)
+            graderTokenVector, studentTokenVector = self.getCombinedVectors(testCaseNum, testCasePassed)
             _, feedback = self._gradeTokenVectors(graderTokenVector, studentTokenVector, testCaseNum, False)
             
         feedback = list(set(feedback))
@@ -380,7 +388,7 @@ class SmartGrader():
         return feedback
 
     def getTokenVectorsByLine(self, fromStr, toStr):
-        """A better way of getting difference tokens if the output conatins more than one line
+        """A better way of getting difference tokens if the output contains more than one line
 
         Arguments:
             fromStr {str} -- The string to get the changes in
