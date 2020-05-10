@@ -15,7 +15,7 @@ from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import TerminalFormatter
 
-
+# TODO Have this actually convert ansi to some windows formatting stuff maybe?
 def printFormattedText(text, end='\n'):
     """Used to print ANSI formatted text in a cross-platform way
         Basically, this strips all ANSI formatting if the program is being run
@@ -195,60 +195,41 @@ def generateOutputs(projectDir, programPath, testCases, language='java', timeout
 
     return outputs
 
-if __name__ == '__main__':
-    # TODO: Add support for grading multiple students simultaneously
-    parser = argparse.ArgumentParser()
-
-    # Take a path to the configuration file
-    parser.add_argument('-c', '--config', type=str, default=None, help='The relative filepath to the config.json you would like to use')
-    
-    # Take a path to the student's source directory
-    parser.add_argument('-d', '--project-directory', type=str, default=None, help='The relative filepath to the project directory of the student code')
-
-    # Flag to disable printing student directory stuff
-    parser.add_argument('-n', '--no-cat', action='store_true', help='Disable catting student files')
-    
-    # Flag to select what language is being graded
-    parser.add_argument('-l', '--language', type=str, default='java', choices=['java', 'c', 'c++', 'cpp', 'python', 'bash'], help='The language of the assignment being graded')
-    
-    args = parser.parse_args()
+def gradeStudentProgram(studentDirectory, graderOutputs, configs, language, catSource):
+    if studentDirectory[-1] == os.sep:
+        studentDirectory = studentDirectory[:-1]
 
     # Print student directory contents
-    if not args.no_cat:
-        printSourceFiles(args.project_directory, language=args.language)
+    if catSource:
+        printSourceFiles(studentDirectory, language=language)
 
 
     printFormattedText('\033[1;4mProject Directory Listing\033[0m')
-    printTree(args.project_directory)
+    printTree(studentDirectory)
 
     # Check to see if you want to continue grading
     continueGrading = input('\n\n\n\n\nContinue grading? [Y/n] ')
     if 'n' in continueGrading.lower():
         print('Exiting')
-        exit(0)
-    
-    # Load in the configuration file
-    with open(join(args.config), 'r') as testCasesFile:
-        configs = json.loads(testCasesFile.read())
-
-    sg = SmartGrader(configs["settings"])
-    
+        exit(0) 
     
     # Check for makefile
-    compilationSuccessful = compile(args.project_directory, language=args.language)
+    compilationSuccessful = compile(studentDirectory, language=language)
     # If we can't build with the student-supplied makefile and we can't build with our methods, exit because it's broken code
     if not compilationSuccessful:
         print('INTERNAL BUILD FAILED, EXITING')
-        if args.language in ['c', 'cpp', 'c++']:
+        if language in ['c', 'cpp', 'c++']:
             print('Note, it is very difficult to automatically build C/C++. Makefiles are strongly recommended for C/C++\n')
         exit(1)
     else:
         print('Build successful\n')
     
+    sg = SmartGrader(configs["settings"])
+
     # Figure out which of the student's programs to run
     print('Running test cases...\n')
     studentPrograms = []
-    for dirName, subdirList, fileList in os.walk(args.project_directory):
+    for dirName, subdirList, fileList in os.walk(studentDirectory):
         for fname in fileList:
             program = join(dirName, fname)
             if 'bin' + os.sep in program:
@@ -262,23 +243,23 @@ if __name__ == '__main__':
         studentProgramPath = studentPrograms[int(float(selection)) - 1]
 
     # Get student outputs
-    studentOutputs = generateOutputs(args.project_directory, studentProgramPath, configs["tests"])
-
-    # Generate the grader outputs
-    configDir = os.path.dirname(args.config)
-    graderPath = join(configDir, configs["settings"]["graderProgram"])
-    
-    graderOutputs = generateOutputs(configDir, configs["settings"]["graderProgram"], configs['tests'], noBin=True)
+    studentOutputs = generateOutputs(studentDirectory, studentProgramPath, configs["tests"])
     
     sg.graderOutputs = graderOutputs
     sg.studentOutputs = studentOutputs
     sg.analyze()
 
+    return os.path.basename(studentDirectory), sg
+
+def printTestResults(sg, testCases, studentName=""):
     totalGrade = 0
     testsPassed = 0
 
-    printFormattedText('\033[1;4mTest Case Results\033[0m\n')
-    for i, test in enumerate(configs["tests"]):
+    if len(studentName) > 0:
+        studentName = " for " + studentName
+
+    printFormattedText(f'\n\033[1;4mTest Case Results{studentName}\033[0m\n')
+    for i, test in enumerate(testCases):
         grade = sg.getGrade(i)
 
         totalGrade += grade
@@ -306,47 +287,82 @@ if __name__ == '__main__':
                 firstFeedback = False
         print()
 
-    averageGrade = totalGrade / len(configs["tests"])
+    averageGrade = totalGrade / len(testCases)
 
-    printFormattedText(f'\033[1mTests Passed: [{testsPassed}/{len(configs["tests"])}]')
+    printFormattedText(f'\033[1mTests Passed: [{testsPassed}/{len(testCases)}]')
     printFormattedText(f'Overall Grade: {averageGrade:.02f}%\033[0m\n')
 
-    # Check to see if you want to continue grading
-    continueGrading = input('Would you like to view the student output for the failed test cases? [Y/n] ')
-    if 'n' not in continueGrading.lower():
-        for i, test in enumerate(configs["tests"]):
-            if sg.getGrade(i) < sg.passThreshold:
-                printFormattedText(f'\n\033[1m{test["description"]}:\033[0m\n')
+def printTestOutputsWithDifferencesHighlightedInPrettyColorsAndBoldTextUnlessIfYoureOnWindowsBecauseWindowsIsBadAndDoesntLikePrettyThings(sg, testCases):
+    for i, test in enumerate(testCases):
+        if sg.getGrade(i) < sg.passThreshold:
+            printFormattedText(f'\n\033[1m{test["description"]}:\033[0m\n')
 
-                testCasePassed = []
-                for output in studentOutputs:
-                    testCasePassed.append(output[1] == 0)
+            testCasePassed = []
+            for output in sg.studentOutputs:
+                testCasePassed.append(output[1] == 0)
 
-                graderTokens, studentTokens = sg.getCombinedVectors(i, testCasePassed)
+            graderTokens, studentTokens = sg.getCombinedVectors(i, testCasePassed)
 
-                lastTokenEnd = 0
+            lastTokenEnd = 0
 
-                for tokenNum, token in enumerate(studentTokens):
-                    graderToken = graderTokens[min(tokenNum, len(graderTokens) - 1)]
+            for tokenNum, token in enumerate(studentTokens):
+                graderToken = graderTokens[min(tokenNum, len(graderTokens) - 1)]
 
-                    graderStr = graderOutputs[i][0][graderToken.start:graderToken.end]
-                    studentStr = studentOutputs[i][0][token.start:token.end]
+                graderStr = sg.graderOutputs[i][0][graderToken.start:graderToken.end]
+                studentStr = sg.studentOutputs[i][0][token.start:token.end]
 
-                    colorCode = '32' if graderStr == studentStr else '31'
+                colorCode = '32' if graderStr == studentStr else '31'
 
-                    print(studentOutputs[i][0][lastTokenEnd:token.start], end='')
-                    printFormattedText(f'\033[1;{colorCode}m{studentStr}\033[0m', end='')
+                print(sg.studentOutputs[i][0][lastTokenEnd:token.start], end='')
+                printFormattedText(f'\033[1;{colorCode}m{studentStr}\033[0m', end='')
 
-                    if graderStr != studentStr:
-                        printFormattedText(f'\033[2;3m[{graderStr}]\033[0m', end='')
+                if graderStr != studentStr:
+                    printFormattedText(f'\033[2;3m[{graderStr}]\033[0m', end='')
 
-                    lastTokenEnd = token.end
+                lastTokenEnd = token.end
 
-                print(studentOutputs[i][0][lastTokenEnd:])
+            print(sg.studentOutputs[i][0][lastTokenEnd:])
 
+if __name__ == '__main__':
+    # TODO: Add support for grading multiple students simultaneously
+    parser = argparse.ArgumentParser()
 
+    # Take a path to the configuration file
+    parser.add_argument('-c', '--config', type=str, default=None, help='The relative filepath to the config.json you would like to use')
+    
+    # Take a path to the student's source directory
+    parser.add_argument('-d', '--project-directory', type=str, default=None, help='The relative filepath to the project directory of the student code')
 
-    if averageGrade >= sg.passThreshold:
-        exit(0)
-    else:
-        exit(1)
+    # Flag to disable printing student directory stuff
+    parser.add_argument('-n', '--no-cat', action='store_true', help='Disable catting student files')
+    
+    # Flag to select what language is being graded
+    parser.add_argument('-l', '--language', type=str, default='java', choices=['java', 'c', 'c++', 'cpp', 'python', 'bash'], help='The language of the assignment being graded')
+    
+    args = parser.parse_args()
+
+    print(args.project_directory)
+
+    # Load in the configuration file
+    configs = {}
+    with open(join(args.config), 'r') as testCasesFile:
+        configs = json.loads(testCasesFile.read())  
+
+    # Generate the grader outputs
+    configDir = os.path.dirname(args.config)
+    graderPath = join(configDir, configs["settings"]["graderProgram"])
+    
+    graderOutputs = generateOutputs(configDir, configs["settings"]["graderProgram"], configs['tests'], noBin=True)
+
+    studentGrades = []
+
+    if args.project_directory is not None:
+        studentGrades.append(gradeStudentProgram(args.project_directory, graderOutputs, configs, args.language, not args.no_cat))
+
+    for studentName, sg in studentGrades:
+        printTestResults(sg, configs["tests"], studentName)
+
+        # Check to see if you want to continue grading
+        giveFullOutput = input('Would you like to view the student output for the failed test cases? [Y/n] ')
+        if 'n' not in giveFullOutput.lower():
+            printTestOutputsWithDifferencesHighlightedInPrettyColorsAndBoldTextUnlessIfYoureOnWindowsBecauseWindowsIsBadAndDoesntLikePrettyThings(sg, configs["tests"])

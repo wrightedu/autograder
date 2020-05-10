@@ -408,7 +408,7 @@ class SmartGrader():
         # Get a set of lines 
         matchedLines = [(m.group(1), m.group(2), m.start(0)) for m in re.finditer(r'(?:^|\n)\- (.*)\n(?:\? .*\n)?\+ (.*)', diffs)]
         unmatchedLines = [(m.group(1), '''''', m.start(0)) for m in re.finditer(r'(?:^|\n)\- (.*)\n(\-|$)', diffs)]
-        duplicateLines = [(m.group(1), m.group(1), m.start(0)) for m in re.finditer(r'(?:^|\n)  (.*)\n', diffs)]
+        duplicateLines = [(m.group(1), m.group(1), m.start(0)) for m in re.finditer(r'(?:^|\n)  (.*)(?=\n|$)', diffs)]
 
         diffLines = matchedLines + unmatchedLines + duplicateLines
         diffLines.sort(key=lambda x: x[2])
