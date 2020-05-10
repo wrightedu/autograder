@@ -190,9 +190,10 @@ def generateOutputs(projectDir, programPath, testCases, language='java', timeout
             processPipe.terminate()
 
         testResult = processPipe.stdout.read().decode('utf-8')
-        outputs.append(testResult)
+        exitCode = processPipe.returncode
+        outputs.append((testResult, exitCode))
+
     return outputs
-    
 
 if __name__ == '__main__':
     # TODO: Add support for grading multiple students simultaneously
@@ -312,6 +313,36 @@ if __name__ == '__main__':
 
     printFormattedText(f'\033[1mTests Passed: [{testsPassed}/{len(configs["tests"])}]')
     printFormattedText(f'Overall Grade: {averageGrade:.02f}%\033[0m\n')
+
+    # Check to see if you want to continue grading
+    continueGrading = input('Would you like to view the student output for the failed test cases? [Y/n] ')
+    if 'n' not in continueGrading.lower():
+        for i, test in enumerate(configs["tests"]):
+            if sg.getGrade(i) < sg.passThreshold:
+                printFormattedText(f'\n\033[1m{test["description"]}:\033[0m\n')
+
+                graderTokens, studentTokens = sg.getCombinedVectors(i)
+
+                lastTokenEnd = 0
+
+                for tokenNum, token in enumerate(studentTokens):
+                    graderToken = graderTokens[min(tokenNum, len(graderTokens) - 1)]
+
+                    graderStr = graderOutputs[i][0][graderToken.start:graderToken.end]
+                    studentStr = studentOutputs[i][0][token.start:token.end]
+
+                    colorCode = '32' if graderStr == studentStr else '31'
+
+                    print(studentOutputs[i][0][lastTokenEnd:token.start], end='')
+                    printFormattedText(f'\033[1;{colorCode}m{studentStr}\033[0m', end='')
+
+                    if graderStr != studentStr:
+                        printFormattedText(f'\033[2;3m[{graderStr}]\033[0m', end='')
+
+                    lastTokenEnd = token.end
+
+                print(studentOutputs[i][0][lastTokenEnd:])
+
 
 
     if averageGrade >= sg.passThreshold:
