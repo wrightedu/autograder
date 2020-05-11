@@ -13,7 +13,7 @@ from smartGrader import SmartGrader
 
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
-from pygments.formatters import TerminalFormatter
+from pygments.formatters import TerminalTrueColorFormatter, Terminal256Formatter
 
 FORCE_WINDOWS_RENDERING = False
 
@@ -82,9 +82,8 @@ def printSourceFiles(rootDir, language='java'):
                 text = f.read()
                 text = text.replace('\t', '    ')
                 lexer = get_lexer_by_name(language, stripall=True)
-                formatter = TerminalFormatter(linenos=True)
+                formatter = TerminalTrueColorFormatter(style='fruity')
                 printFormattedText(highlight(text, lexer, formatter))
-            print('\n\n\n')
 
 
 def compile(projectDir, language='java'):
@@ -142,7 +141,7 @@ def compile(projectDir, language='java'):
     # If the specified language is unsupported, compilation fails
     return False
 
-def generateOutputs(projectDir, programPath, testCases, language='java', timeout=5, noBin=False, args=()):
+def generateOutputs(projectDir, programPath, testCases, language='java', timeout=5, noBin=False, args=(), progressMark=None):
     """Runs a set of test cases on a program and returns the result
 
     Arguments:
@@ -196,8 +195,11 @@ def generateOutputs(projectDir, programPath, testCases, language='java', timeout
         testResult = processPipe.stdout.read().decode('utf-8')
         exitCode = processPipe.returncode
         outputs.append((testResult, exitCode))
+        if progressMark != None:
+            print(progressMark, end='', flush=True)
 
     return outputs
+
 
 def gradeStudentProgram(studentDirectory, graderOutputs, configs, language, catSource):
     # Print student directory contents
@@ -209,7 +211,7 @@ def gradeStudentProgram(studentDirectory, graderOutputs, configs, language, catS
     printTree(studentDirectory)
 
     # Check to see if you want to continue grading
-    continueGrading = input('\n\n\n\n\nContinue grading? [Y/n] ')
+    continueGrading = input('\nContinue grading? [Y/n] ')
     if 'n' in continueGrading.lower():
         print('Exiting')
         exit(0) 
@@ -228,8 +230,9 @@ def gradeStudentProgram(studentDirectory, graderOutputs, configs, language, catS
     sg = SmartGrader(configs["settings"])
 
     # Figure out which of the student's programs to run
-    print('Running test cases...\n')
+    print('Running test cases', end='', flush=True)
     studentPrograms = []
+
     for dirName, subdirList, fileList in os.walk(studentDirectory):
         for fname in fileList:
             program = join(dirName, fname)
@@ -244,11 +247,13 @@ def gradeStudentProgram(studentDirectory, graderOutputs, configs, language, catS
         studentProgramPath = studentPrograms[int(float(selection)) - 1]
 
     # Get student outputs
-    studentOutputs = generateOutputs(studentDirectory, studentProgramPath, configs["tests"])
+    studentOutputs = generateOutputs(studentDirectory, studentProgramPath, configs["tests"], progressMark='.')
     
     sg.graderOutputs = graderOutputs
     sg.studentOutputs = studentOutputs
     sg.analyze()
+
+    print(" done\n\n\n")
 
     return sg
 
@@ -406,15 +411,69 @@ if __name__ == '__main__':
         # TODO Iterate over the directory in which the test case file is stored, looking at each student's directory
         for studentDirectory in sorted(os.listdir(configDir)):
             if os.path.isdir(join(configDir, studentDirectory)):
-                print(studentDirectory)
+                printFormattedText('\033[2J\033[H', end="")
+                printFormattedText(f'\033[1;4m{studentDirectory}\033[0m\n')
+
                 for dirName, subdirList, fileList in os.walk(os.path.join(configDir, studentDirectory)):
                     if 'src' in subdirList:
                         sg = gradeStudentProgram(dirName, graderOutputs, configs, args.language, not args.no_cat)
                         studentGrades.append((studentDirectory, sg))
 
-    printTable(studentGrades, configs['tests'])
+    if len(studentGrades) > 1:
+        while True:
+            printFormattedText('\033[2J\033[H', end="")
+            printTable(studentGrades, configs['tests'])
 
-    for studentName, sg in studentGrades:
+            moreFeedback = input("Enter a student name or the displayed ID number (including the #) for more feedback. Leave blank and press enter to exit: ")
+
+            if len(moreFeedback) == 0:
+                break
+
+            if moreFeedback[0] == '#':
+                studentIdx = int(moreFeedback[1:])
+
+                studentName, sg = studentGrades[studentIdx]
+
+                printTestResults(sg, configs["tests"], studentName)
+
+                if False in [sg.getGrade(i) >= sg.passThreshold for i in range(len(configs["tests"]))]:
+                    # Check to see if you want to continue grading
+                    giveFullOutput = input('Would you like to view the student output for the failed test cases? [Y/n] ')
+                    if 'n' not in giveFullOutput.lower():
+                        printTestOutputsWithDifferencesHighlightedInPrettyColorsAndBoldTextUnlessIfYoureOnWindowsBecauseWindowsIsBadAndDoesntLikePrettyThings(sg, configs["tests"])
+
+            else:
+                studentIdx = -1
+
+                for i, (studentName, sg) in enumerate(studentGrades):
+                    if studentName == moreFeedback:
+                        studentIdx = i
+                        break
+
+                if studentIdx == -1:
+                    try:
+                        studentIdx = int(moreFeedback)
+                    except:
+                        pass
+
+                if studentIdx == -1:
+                    print(f'The student "{studentName}" could not be found. Please try again')
+                    continue
+
+                studentName, sg = studentGrades[studentIdx]
+
+                printTestResults(sg, configs["tests"], studentName)
+
+                if False in [sg.getGrade(i) >= sg.passThreshold for i in range(len(configs["tests"]))]:
+                    # Check to see if you want to continue grading
+                    giveFullOutput = input('Would you like to view the student output for the failed test cases? [Y/n] ')
+                    if 'n' not in giveFullOutput.lower():
+                        printTestOutputsWithDifferencesHighlightedInPrettyColorsAndBoldTextUnlessIfYoureOnWindowsBecauseWindowsIsBadAndDoesntLikePrettyThings(sg, configs["tests"])
+
+
+            input("Press enter to continue...")
+    else:
+        studentName, sg = studentGrades[0]
         printTestResults(sg, configs["tests"], studentName)
 
         # Check to see if you want to continue grading
