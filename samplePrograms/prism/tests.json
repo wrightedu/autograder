@@ -47,7 +47,7 @@
         },
         {
             "description": "Test a prism with no width",
-            "input": "98.72\n-0.00\n54.32\n"
+            "input": "98.72\n0.00\n54.32\n"
         },
         {
             "description": "Test a prism with no height",

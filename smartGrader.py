@@ -10,8 +10,10 @@ import traceback
 import logging
 
 DEBUG = False
-PRINT_TOKENS = False
+PRINT_COMBINED = False
+PRINT_LINES = False
 PRINT_OUTPUTS = False
+PRINT_TOKENS = False
 
 class SmartGrader():
     """A class that uses difference token vectors to automatically determine how well the output
@@ -62,6 +64,7 @@ class SmartGrader():
         else:
             self.compileFailure = 100
 
+        # More stuff from settings
         if "penaltyWeight" in settings:
             self.penaltyWeight = settings["penaltyWeight"]
         else:
@@ -72,11 +75,20 @@ class SmartGrader():
         else:
             self.passThreshold = 95
 
-        # More stuff from settings
         if "collapseWhitespace" in settings:
             self.collapseWhitespace = settings["collapseWhitespace"]
         else:
             self.collapseWhitespace = True
+
+        if "enforceFloatingPoint" in settings:
+            self.gradeForIntFloat = settings["enforceFloatingPoint"]
+        else:
+            self.gradeForIntFloat = False
+
+        if "unifiedDifferenceChecking" in settings:
+            self.combineDifferences = settings["unifiedDifferenceChecking"]
+        else:
+            self.combineDifferences = True
 
         ###### Store the output vectors ######
         self.graderOutputs = graderOutputs
@@ -87,6 +99,7 @@ class SmartGrader():
         # These will be two square matrices of vectors
         self.graderTokens = None
         self.studentTokens = None
+
 
     def convertPenaltyToGrade(self, penalty):
         """Uses an exponential decay to convert the student's accumulated penalty to a letter grade
@@ -132,23 +145,139 @@ class SmartGrader():
             if DEBUG:
                 print(f'\n\n\n ---------- TEST CASE {i} ----------\n\n')
             for j in range(len(self.graderOutputs)):
-                self.graderTokens[i][j] = self.getTokenVectorsByLine(self.graderOutputs[i], self.graderOutputs[j])
-                self.studentTokens[i][j] = self.getTokenVectorsByLine(self.studentOutputs[i], self.studentOutputs[j])
+                self.graderTokens[i][j] = self.getTokenVectorsByLine(self.graderOutputs[i][0], self.graderOutputs[j][0])
+                self.studentTokens[i][j] = self.getTokenVectorsByLine(self.studentOutputs[i][0], self.studentOutputs[j][0])
 
         if DEBUG or PRINT_TOKENS:
-            print ("\n ----- GRADER TOKENS ----- ")
+            print(' -------- GRADER TOKENS --------')
             for i in range(len(self.graderOutputs)):
                 print(f'  Test case {i}')
                 for j in range(len(self.graderOutputs)):
-                    print(f'    {self.graderTokens[i][j]}')
+                    print('    [', end='')
+                    for t in self.graderTokens[i][j]:
+                        print(f'{str(t)}', end=', ')
+                    print(']')
 
-            print ("\n ----- STUDENT TOKENS ----- ")
+            print(' -------- STUDENT TOKENS --------')
             for i in range(len(self.graderOutputs)):
                 print(f'  Test case {i}')
                 for j in range(len(self.graderOutputs)):
-                    print(f'    {self.studentTokens[i][j]}')
+                    print('    [', end='')
+                    for t in self.studentTokens[i][j]:
+                        print(f'{str(t)}', end=', ')
+                    print(']')
 
             print('\n\n')
+
+    def getCombinedVectors(self, testCaseNum, mask=None):
+        combinedGraderVectors = []
+        combinedStudentVectors = []
+
+        for i, vect in enumerate(self.graderTokens[testCaseNum]):
+            if mask is None or mask[i]:
+                combinedGraderVectors += vect
+
+        for i, vect in enumerate(self.studentTokens[testCaseNum]):
+            if mask is None or mask[i]:
+                combinedStudentVectors += vect
+
+        combinedGraderVectors = list(set(combinedGraderVectors))
+        combinedStudentVectors = list(set(combinedStudentVectors))
+
+        combinedGraderVectors.sort(key=lambda x: x.start)
+        combinedStudentVectors.sort(key=lambda x: x.start)
+
+        if DEBUG or PRINT_COMBINED:
+            for i in combinedGraderVectors:
+                print(str(i), end=',')
+            print()
+            for i in combinedStudentVectors:
+                print(str(i), end=',')
+            print()
+
+        return combinedGraderVectors, combinedStudentVectors
+
+    def _gradeTokenVectors(self, graderTokenVector, studentTokenVector, testCaseNum, ignoreTokenCount=False, compareIndex=-1):
+        totalError = 0
+        feedback = []
+
+        if self.studentOutputs[testCaseNum][1] != 0 and self.graderOutputs[testCaseNum][1] == 0:
+            feedback.append("Student program encountered an unexpected runtime exception")
+            totalError += self.runFailurePenalty
+        
+        if len(graderTokenVector) != len(studentTokenVector):
+            if not ignoreTokenCount:
+                totalError += self.tokenCountMismatchPenalty
+                
+                # Convert the token vector into easily readable strings
+                graderVectorString = '['
+                studentVectorString = '['
+
+                for i in graderTokenVector:
+                    graderVectorString += '\''
+                    graderVectorString += str(i)
+                    graderVectorString += '\', '
+
+                for i in studentTokenVector:
+                    studentVectorString += '\''
+                    studentVectorString += str(i)
+                    studentVectorString += '\', '
+
+                if len(graderVectorString) > 1:
+                    graderVectorString = graderVectorString[0:-2]
+                if len(studentVectorString) > 1:
+                    studentVectorString = studentVectorString[0:-2]
+
+                graderVectorString += ']'
+                studentVectorString +=']'
+
+                if compareIndex != -1:
+                    feedback.append(f"When comparing to test case {compareIndex} expected {graderVectorString}, got {studentVectorString}")
+                else:
+                    feedback.append(f"Expected {graderVectorString}, got {studentVectorString}")
+
+        tokenCount = min(len(graderTokenVector), len(studentTokenVector))
+
+        for i in range(tokenCount):
+
+            graderVal = graderTokenVector[i].value
+            studentVal = studentTokenVector[i].value
+
+            # If the two tokens are of different type, nightmare bad
+            # bad nightmare nightmare nightmare nightmare nightmare nightmare bad nightmare nightmare
+            # nightmare nightmare nightmare nightmare nightmare bad nightmare nightmare nightmare
+            # nightmare nightmare nightmare nightmare nightmare nightmare nightmare nightmare nightmare nightmare
+            if type(graderVal) != type(studentVal):
+                # Before supplying any feedback, check to make sure these weren't both numeric types
+                if not (isinstance(graderVal, (float, int)) and isinstance(studentVal, (float, int)) and not self.gradeForIntFloat):
+                    totalError += self.typeMismatchPenalty
+                    feedback.append(f"Expected a {type(graderVal)} ({graderVal}), got a {type(studentVal)} ({studentVal})")
+
+            # If the grader and the student vectors are different, 
+            #   also bad
+            elif graderVal != studentVal:
+
+                feedback.append(f"Expected '{graderVal}', got '{studentVal}'")
+
+                # If they are floats, the penalty will be proportional to the
+                #   percentage difference between them
+                if isinstance(graderVal, (float, int)):
+                    if graderVal != 0:
+                        totalError += self.numericMismatchPenalty * abs(
+                            (graderVal - studentVal) / graderVal)
+
+                    else:
+                        totalError += self.numericMismatchPenalty * abs(studentVal)
+
+                # If they are strings, the penalty will be proportional to
+                #   the number of characters that are different
+                else:
+                    charDiffs = list(ndiff(graderVal, studentVal))
+                    for diff in charDiffs:
+                        if diff[0] in '+-':
+                            totalError += self.characterMismatchPenalty
+
+        return totalError, feedback
 
     def _getGradeIgnoringTokenCount(self, testCaseNum):
         """Internal function used to get a rough hack at which 
@@ -164,39 +293,8 @@ class SmartGrader():
             graderTokenVector = self.graderTokens[testCaseNum][i]
             studentTokenVector = self.studentTokens[testCaseNum][i]
             
-            tokenCount = min(len(graderTokenVector), len(studentTokenVector))
-
-            for j in range(tokenCount):
-
-                # If the two tokens are of different type, nightmare bad
-                # bad nightmare nightmare bad bad 
-                if type(graderTokenVector[j]) != type(studentTokenVector[j]):
-                    totalError += self.typeMismatchPenalty
-
-                # If the grader and the student vectors are different, 
-                #   also bad
-                elif graderTokenVector[j] != studentTokenVector[j]:
-
-                    # If they are floats, the penalty will be proportional to the
-                    #   percentage difference between them
-                    if isinstance(graderTokenVector[j], float):
-                        if graderTokenVector[j] != 0:
-                            totalError += self.numericMismatchPenalty * abs((graderTokenVector[j] - studentTokenVector[j]) / graderTokenVector[j])
-
-                        else:
-                            totalError += self.numericMismatchPenalty * abs(studentTokenVector[j])
-
-                    # If they are strings, the penalty will be proportional to
-                    #   the number of characters that are different
-                    else:
-                        charDiffs = list(ndiff(graderTokenVector[j], studentTokenVector[j]))
-                        for diff in charDiffs:
-                            if diff[0] in '+-':
-                                totalError += self.characterMismatchPenalty
-
-                
-            # TODO I hopefully fixed things so that an error would never actually be thrown during grading
-            # TODO If this is the case, the grading exception penalty can be removed
+            error, _ = self._gradeTokenVectors(graderTokenVector, studentTokenVector, testCaseNum, True)
+            totalError += error
 
         totalError /= len(self.studentOutputs)
 
@@ -218,61 +316,31 @@ class SmartGrader():
         if testCaseNum >= len(self.studentOutputs):
             raise IndexError("Test case number must be less than the number of test cases")
         
-        testCasePassed = []
-        # Get whether or not each of the individual test cases was passing
-        for i in range(len(self.graderOutputs)):
-            testCasePassed.append(self._getGradeIgnoringTokenCount(i) >= self.passThreshold)
-
         totalError = 0
 
-        for i in range(len(self.graderOutputs)):
-            
-            graderTokenVector = self.graderTokens[testCaseNum][i]
-            studentTokenVector = self.studentTokens[testCaseNum][i]
+        if not self.combineDifferences:
+            testCasePassed = []
+            # Get whether or not each of the individual test cases was passing
+            for i in range(len(self.graderOutputs)):
+                testCasePassed.append(self._getGradeIgnoringTokenCount(i) >= self.passThreshold)
 
-            # TODO Better handling of mismatched token lengths
-            # TODO Better handling of out-of-order/shuffled tokens
-
-            if len(graderTokenVector) != len(studentTokenVector):
-                if testCasePassed[i]:
-                    totalError += self.tokenCountMismatchPenalty
-            
-            tokenCount = min(len(graderTokenVector), len(studentTokenVector))
-
-            for j in range(tokenCount):
-
-                # If the two tokens are of different type, nightmare bad
-                # bad nightmare nightmare bad bad 
-                if type(graderTokenVector[j]) != type(studentTokenVector[j]):
-                    totalError += self.typeMismatchPenalty
-
-                # If the grader and the student vectors are different, 
-                #   also bad
-                elif graderTokenVector[j] != studentTokenVector[j]:
-
-                    # If they are floats, the penalty will be proportional to the
-                    #   percentage difference between them
-                    if isinstance(graderTokenVector[j], float):
-                        if graderTokenVector[j] != 0:
-                            totalError += self.numericMismatchPenalty * abs(
-                                (graderTokenVector[j] - studentTokenVector[j]) / graderTokenVector[j])
-
-                        else:
-                            totalError += self.numericMismatchPenalty * abs(studentTokenVector[j])
-
-                    # If they are strings, the penalty will be proportional to
-                    #   the number of characters that are different
-                    else:
-                        charDiffs = list(ndiff(graderTokenVector[j], studentTokenVector[j]))
-                        for diff in charDiffs:
-                            if diff[0] in '+-':
-                                totalError += self.characterMismatchPenalty
-
+            for i in range(len(self.graderOutputs)):
                 
-            # TODO I hopefully fixed things so that an error would never actually be thrown during grading
-            # TODO If this is the case, the grading exception penalty can be removed
+                graderTokenVector = self.graderTokens[testCaseNum][i]
+                studentTokenVector = self.studentTokens[testCaseNum][i]
 
-        totalError /= len(self.studentOutputs)
+                error, _ = self._gradeTokenVectors(graderTokenVector, studentTokenVector, testCaseNum, not testCasePassed[i])
+                totalError += error
+
+            totalError /= len(self.studentOutputs)
+
+        else:
+            testCasePassed = []
+            for i in self.studentOutputs:
+                testCasePassed.append(i[1] == 0)
+            graderTokenVector, studentTokenVector = self.getCombinedVectors(testCaseNum, testCasePassed)
+            totalError, _ = self._gradeTokenVectors(graderTokenVector, studentTokenVector, testCaseNum, False)
+                
 
         return self.convertPenaltyToGrade(totalError)
 
@@ -292,49 +360,35 @@ class SmartGrader():
         if testCaseNum >= len(self.studentOutputs):
             raise IndexError("Test case number must be less than the number of test cases")
         
-        testCasePassed = []
-        # Get whether or not each of the individual test cases was passing
-        for i in range(len(self.graderOutputs)):
-            testCasePassed.append(self._getGradeIgnoringTokenCount(i) >= self.passThreshold)
-
         feedback = []
 
-        for i in range(len(self.graderOutputs)):
+        if not self.combineDifferences:
+            testCasePassed = []
+            # Get whether or not each of the individual test cases was passing
+            for i in range(len(self.graderOutputs)):
+                testCasePassed.append(self._getGradeIgnoringTokenCount(i) >= self.passThreshold)
+
+            for i in range(len(self.graderOutputs)):
+                graderTokenVector = self.graderTokens[testCaseNum][i]
+                studentTokenVector = self.studentTokens[testCaseNum][i]
+
+                _, newFeedback = self._gradeTokenVectors(graderTokenVector, studentTokenVector, testCaseNum, not testCasePassed[i], i)
+                feedback += newFeedback
+
+        else:
+            testCasePassed = []
+            for i in self.studentOutputs:
+                testCasePassed.append(i[1] == 0)
+            graderTokenVector, studentTokenVector = self.getCombinedVectors(testCaseNum, testCasePassed)
+            _, feedback = self._gradeTokenVectors(graderTokenVector, studentTokenVector, testCaseNum, False)
             
-            graderTokenVector = self.graderTokens[testCaseNum][i]
-            studentTokenVector = self.studentTokens[testCaseNum][i]
-
-            # TODO Better handling of mismatched token lengths
-            # TODO Better handling of out-of-order/shuffled tokens
-
-            if len(graderTokenVector) != len(studentTokenVector):
-                if testCasePassed[i]:
-                    feedback.append(f"When comparing to test case {i} expected {graderTokenVector}, got {studentTokenVector}")
-            
-            tokenCount = min(len(graderTokenVector), len(studentTokenVector))
-
-            for j in range(tokenCount):
-
-                # If the two tokens are of different type, nightmare bad
-                # bad nightmare nightmare bad bad 
-                if type(graderTokenVector[j]) != type(studentTokenVector[j]):
-                    if isinstance(graderTokenVector[j], str):
-                        feedback.append(f"Expected a string, got a number")
-                    else:
-                        feedback.append(f"Expected a number, got a string")
-
-                # If the grader and the student vectors are different, 
-                #   also bad
-                elif graderTokenVector[j] != studentTokenVector[j]:                   
-                    feedback.append(f"Expected '{graderTokenVector[j]}', got '{studentTokenVector[j]}'")
-
         feedback = list(set(feedback))
         feedback.sort()
 
         return feedback
 
     def getTokenVectorsByLine(self, fromStr, toStr):
-        """A better way of getting difference tokens if the output conatins more than one line
+        """A better way of getting difference tokens if the output contains more than one line
 
         Arguments:
             fromStr {str} -- The string to get the changes in
@@ -354,20 +408,25 @@ class SmartGrader():
         # Get a set of lines 
         matchedLines = [(m.group(1), m.group(2), m.start(0)) for m in re.finditer(r'(?:^|\n)\- (.*)\n(?:\? .*\n)?\+ (.*)', diffs)]
         unmatchedLines = [(m.group(1), '''''', m.start(0)) for m in re.finditer(r'(?:^|\n)\- (.*)\n(\-|$)', diffs)]
+        duplicateLines = [(m.group(1), m.group(1), m.start(0)) for m in re.finditer(r'(?:^|\n)  (.*)(?=\n|$)', diffs)]
 
-        diffLines = matchedLines + unmatchedLines
+        diffLines = matchedLines + unmatchedLines + duplicateLines
         diffLines.sort(key=lambda x: x[2])
 
+        lineStart = 0
 
         # Get the difference tokens from each of the individual lines
         for line in diffLines:
-            if DEBUG:
+            if DEBUG or PRINT_LINES:
                 print(line)
-            newTokens = self.getTokenVector(line[0], line[1])
+            newTokens = self.getTokenVector(line[0], line[1]) if line[0] != line[1] else []
             if DEBUG:
                 for t in newTokens:
                     print(f'    {t}')
-            tokens += newTokens
+            for token in newTokens:
+                token.offset(lineStart)
+                tokens.append(token)
+            lineStart += len(line[0]) + 1
 
         if DEBUG:
             print('\n')
@@ -479,31 +538,73 @@ class SmartGrader():
         tokenVector = []
         tokenNum = 0
         tokenStr = ""
+        tokenStart = -1
 
-        while tokenNum < len(possibleTokens):
-            token = possibleTokens[tokenNum]
+        for i, token in enumerate(possibleTokens):
+            nextToken = possibleTokens[i+1] if i+1 < len(possibleTokens) else {"start": -1, "end": -1, "type": None, "diff": False}
+        
             if token["diff"]:
-                tokenStr = fromStr[token["start"]:token["end"]]
-                if (token["type"] == "word" or token["type"] == "space") and tokenNum < len(possibleTokens) - 1:
-                    tokenNum += 1
-                    token = possibleTokens[tokenNum]
-                    while tokenNum < len(possibleTokens) and ((token["type"] == "word" and token["diff"]) or token["type"] == "space"):
-                        if self.collapseWhitespace:
-                            tokenStr += " "
-                        tokenStr += fromStr[token["start"]:token["end"]]
-                        tokenNum += 1
-                        if tokenNum < len(possibleTokens):
-                            token = possibleTokens[tokenNum]
+                if token["type"] == "number":
+                    tokenStr = fromStr[token["start"]:token["end"]]
+                    # If this was an integer, cast as integer before creating the new token
+                    if tokenStr.count('.') == 0:
+                        tokenVal = int(tokenStr)
+                    else:
+                        tokenVal = float(tokenStr)
 
-                    if self.characterMismatchPenalty != 0:
-                        tokenVector.append(tokenStr)
+                    # Create and append the new token
+                    if self.numericMismatchPenalty != 0:
+                        tokenVector.append(Token(tokenVal, token["start"], token["end"]))
+                    tokenStr = ""
 
-                    if token["type"] == "number" and token["diff"] and self.numericMismatchPenalty != 0:
-                        tokenVector.append(float(fromStr[token["start"]:token["end"]]))
-                elif token["type"] == "number" and self.numericMismatchPenalty != 0:
-                    tokenVector.append(float(tokenStr))
-                elif self.characterMismatchPenalty != 0:
-                    tokenVector.append(tokenStr)
-            tokenNum += 1
+                else:
+
+                    # If this is the start of a new token
+                    if tokenStr == "":
+                        tokenStart = token["start"]
+
+
+                    tokenStr += fromStr[token["start"]:token["end"]]
+
+                    # If this is the end of a token
+                    if not nextToken["diff"] or nextToken["type"] == "number":
+                        if self.characterMismatchPenalty != 0:
+                            tokenVector.append(Token(tokenStr, tokenStart, token["end"]))
+                        tokenStr = ''
+
+                    # If we're collapsing whitespace, we have to add it manually
+                    elif self.collapseWhitespace:
+                        tokenStr += ' '
 
         return tokenVector
+
+class Token:
+    def __init__(self, value, start, end):
+        self.value = value
+        self.start = start
+        self.end = end
+
+    def offset(self, delta):
+        self.start += delta
+        self.end += delta
+        return self
+
+    def __str__(self):
+        return f'{self.value}'
+
+    def __hash__(self):
+        return (self.value, self.start, self.end).__hash__()
+
+    def __eq__(self, other):
+        return (self.value, self.start, self.end).__eq__((other.value, other.start, other.end))
+
+    def __cmp__(self, other):
+        if self.start < other.start:
+            return -1
+        if self.start > other.start:
+            return 1
+        if self.end < other.end:
+            return -1
+        if self.end > other.end:
+            return 1
+        return 0
