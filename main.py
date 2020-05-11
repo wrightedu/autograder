@@ -15,6 +15,10 @@ from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import TerminalFormatter
 
+FORCE_WINDOWS_RENDERING = False
+
+CHECKMARK, XMARK = ('✔', '✘') if os.name != 'nt' and not FORCE_WINDOWS_RENDERING else ('A', 'X')
+
 # TODO Have this actually convert ansi to some windows formatting stuff maybe?
 def printFormattedText(text, end='\n'):
     """Used to print ANSI formatted text in a cross-platform way
@@ -28,7 +32,7 @@ def printFormattedText(text, end='\n'):
     Keyword Arguments:
         end {str} -- The text to print at the end of the print, like 'end' for print (default: {'\n'})
     """
-    if os.name == 'nt':
+    if os.name == 'nt' or FORCE_WINDOWS_RENDERING:
         print(re.sub(r'\033\[.*?m', '', text), end=end)
     else:
         print(text, end=end)
@@ -196,9 +200,6 @@ def generateOutputs(projectDir, programPath, testCases, language='java', timeout
     return outputs
 
 def gradeStudentProgram(studentDirectory, graderOutputs, configs, language, catSource):
-    if studentDirectory[-1] == os.sep:
-        studentDirectory = studentDirectory[:-1]
-
     # Print student directory contents
     if catSource:
         printSourceFiles(studentDirectory, language=language)
@@ -249,7 +250,7 @@ def gradeStudentProgram(studentDirectory, graderOutputs, configs, language, catS
     sg.studentOutputs = studentOutputs
     sg.analyze()
 
-    return os.path.basename(studentDirectory), sg
+    return sg
 
 def printTestResults(sg, testCases, studentName=""):
     totalGrade = 0
@@ -265,11 +266,11 @@ def printTestResults(sg, testCases, studentName=""):
         totalGrade += grade
 
         if grade == 100:
-            printFormattedText(f'\033[32;1m✔\033[0m ({i}) {test["description"]}:')
+            printFormattedText(f'\033[32;1m{CHECKMARK}\033[0m ({i}) {test["description"]}:')
             testsPassed += 1
             printFormattedText (f'\033[2;3m{grade:-3.0f}%\033[0m')
         elif grade >= sg.passThreshold:
-            printFormattedText(f'\033[32;1m✔\033[0m ({i}) {test["description"]}:')
+            printFormattedText(f'\033[32;1m{CHECKMARK}\033[0m ({i}) {test["description"]}:')
             testsPassed += 1
             printFormattedText (f'\033[2;3m{min(grade, 99):-3.0f}%\033[0m', end='')
             feedback = sg.getFeedback(i)
@@ -278,7 +279,7 @@ def printTestResults(sg, testCases, studentName=""):
                 print(f'    {f}' if firstFeedback else f'        {f}')
                 firstFeedback = False
         else:
-            printFormattedText(f'\033[31;1m✘\033[0m ({i}) {test["description"]}:')
+            printFormattedText(f'\033[31;1m{XMARK}\033[0m ({i}) {test["description"]}:')
             printFormattedText (f'\033[2;3m{min(grade, 99):-3.0f}%\033[0m', end='')
             feedback = sg.getFeedback(i)
             firstFeedback = True
@@ -323,6 +324,45 @@ def printTestOutputsWithDifferencesHighlightedInPrettyColorsAndBoldTextUnlessIfY
 
             print(sg.studentOutputs[i][0][lastTokenEnd:])
 
+def printTable(studentGrades, testCases):
+    # Get the length of the longest student's name
+    longestName = max([len(g[0]) for g in studentGrades] + [4])
+    maxStudentNumLength = len(f'(#{len(studentGrades)-1})')
+
+    longestTestCase = max(len(f"Test {len(testCases) - 1}"), len(f'100% {CHECKMARK}'))
+
+    printFormattedText(f'\033[1;4m {"NAME".rjust(int((longestName + maxStudentNumLength + 1) / 2 + len("NAME") / 2)):{longestName + maxStudentNumLength + 1}}', end=' ')
+
+    for i in range(len(testCases)):
+        print(f' {f"TEST {i}".rjust(int(longestTestCase / 2 + len(f"TEST {i}") / 2)):{longestTestCase}}', end=' ')
+
+    printFormattedText(' OVERALL GRADE \033[0m')
+
+    for i, (studentName, sg) in enumerate(studentGrades):
+        printFormattedText(f'{studentName:{longestName}} \033[2m{f"(#{i})":{maxStudentNumLength}}\033[0m ', end=' ')
+        
+        totalGrade = 0
+
+        for i in range(len(testCases)):
+            grade = sg.getGrade(i)
+
+            totalGrade += grade
+            if grade < sg.passThreshold:
+                grade = min(grade, 99)
+            
+            passFailMark = f'\033[32;1m{CHECKMARK}\033[0m' if grade >= sg.passThreshold else f'\033[31;1m{XMARK}\033[0m'
+
+            printFormattedText(f' {f"{sg.getGrade(i):-3.0f}% {passFailMark}":{longestTestCase}}', end=' ')
+
+        totalGrade /= len(testCases)
+        if totalGrade < sg.passThreshold:
+                totalGrade = min(totalGrade, 99)
+
+        finalFeedback = f"    {totalGrade:-3.0f}% {passFailMark}"
+
+        printFormattedText(f' \033[1m{finalFeedback}\033[0m')
+
+
 if __name__ == '__main__':
     # TODO: Add support for grading multiple students simultaneously
     parser = argparse.ArgumentParser()
@@ -341,8 +381,6 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
 
-    print(args.project_directory)
-
     # Load in the configuration file
     configs = {}
     with open(join(args.config), 'r') as testCasesFile:
@@ -356,8 +394,25 @@ if __name__ == '__main__':
 
     studentGrades = []
 
+
     if args.project_directory is not None:
-        studentGrades.append(gradeStudentProgram(args.project_directory, graderOutputs, configs, args.language, not args.no_cat))
+
+        if args.project_directory[-1] == os.sep:
+            args.project_directory = args.project_directory[:-1]
+
+        sg = gradeStudentProgram(args.project_directory, graderOutputs, configs, args.language, not args.no_cat)
+        studentGrades.append((os.path.basename(args.project_directory), sg))
+    else:
+        # TODO Iterate over the directory in which the test case file is stored, looking at each student's directory
+        for studentDirectory in sorted(os.listdir(configDir)):
+            if os.path.isdir(join(configDir, studentDirectory)):
+                print(studentDirectory)
+                for dirName, subdirList, fileList in os.walk(os.path.join(configDir, studentDirectory)):
+                    if 'src' in subdirList:
+                        sg = gradeStudentProgram(dirName, graderOutputs, configs, args.language, not args.no_cat)
+                        studentGrades.append((studentDirectory, sg))
+
+    printTable(studentGrades, configs['tests'])
 
     for studentName, sg in studentGrades:
         printTestResults(sg, configs["tests"], studentName)
