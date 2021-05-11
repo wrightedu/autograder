@@ -3,7 +3,7 @@
         "penalties": {
             "typeMismatch": 20,
             "tokenCountMismatch": 50,
-            "numericMismatch": 100,
+            "numericMismatch": 1000,
             "characterMismatch": 1,
             "runFailure": 100
         },
