@@ -10,25 +10,7 @@ from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import TerminalTrueColorFormatter
 
-
-
-# TODO This should probably be a util
-def _print_file(file_path, language='java'):
-    with open(file_path) as f:
-        text = f.read()
-        text = text.replace('\t', '    ')
-        lexer = get_lexer_by_name(language, stripall=True)
-        formatter = TerminalTrueColorFormatter(style='fruity')
-        _print_formatted_text(highlight(text, lexer, formatter))
-
-    
-# TODO Have this take a dictionary or similar with formatting information
-# TODO This should probably be a util
-def _print_formatted_text(text, end='\n', force_windows_rendering=False):
-    if os.name == 'nt' or force_windows_rendering:
-        print(re.sub(r'\033\[.*?m', '', text), end=end)
-    else:
-        print(text, end=end)
+from utils import print_file, print_formatted_text
 
 
 class Program:
@@ -222,8 +204,8 @@ class Program:
                 # TODO Add makefiles in here probably
                 if file_extension in Program.language_extensions:
                     path = os.path.join(dir_name, fname)
-                    _print_formatted_text(f'\033[1;4m{path}\033[0m')
-                    _print_file(path, language=file_extension[1:])
+                    print_formatted_text(f'\033[1;4m{path}\033[0m')
+                    print_file(path, language=file_extension[1:])
 
 
     def print_directory_listing(self, directory=None, recursion_level=0, indent='│   ', dir_branch='├───┐', file_branch='├── '):
@@ -235,9 +217,9 @@ class Program:
 
         # Prints this directory name 
         if recursion_level == 0:
-            _print_formatted_text(f'\033[1m{os.path.basename(dir)}\033[0m')
+            print_formatted_text(f'\033[1m{os.path.basename(dir)}\033[0m')
         else:
-            _print_formatted_text(f'{dir_indent}\033[1m{os.path.basename(directory)}\033[0m')
+            print_formatted_text(f'{dir_indent}\033[1m{os.path.basename(directory)}\033[0m')
 
         # Iterate over every file and sub directory, printing file names
         #   and recursing into sub-directories
@@ -246,6 +228,6 @@ class Program:
             if os.path.isdir(new_path):
                 self.print_directory_listing(new_path, recursion_level + 1, indent, dir_branch, file_branch)
             else:
-                _print_formatted_text(f'{file_indent}\033[3m{file}\033[0m')
+                print_formatted_text(f'{file_indent}\033[3m{file}\033[0m')
 
     

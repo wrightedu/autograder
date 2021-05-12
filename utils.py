@@ -20,8 +20,21 @@ FORCE_WINDOWS_RENDERING = False
 
 CHECKMARK, XMARK = ('✔', '✘') if os.name != 'nt' and not FORCE_WINDOWS_RENDERING else ('A', 'X')
 
-def compileMake():
-    pass
+def print_file(file_path, language='java'):
+    with open(file_path) as f:
+        text = f.read()
+        text = text.replace('\t', '    ')
+        lexer = get_lexer_by_name(language, stripall=True)
+        formatter = TerminalTrueColorFormatter(style='fruity')
+        print_formatted_text(highlight(text, lexer, formatter))
+
+    
+# TODO Have this take a dictionary or similar with formatting information
+def print_formatted_text(text, end='\n', force_windows_rendering=False):
+    if os.name == 'nt' or force_windows_rendering:
+        print(re.sub(r'\033\[.*?m', '', text), end=end)
+    else:
+        print(text, end=end)
 
 def compile(projectDir, language='java'):
     """First searches for a makefile, if one is found, it is run
