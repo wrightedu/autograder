@@ -13,14 +13,14 @@ class TestCase:
     def load_from_array(array):
         return [TestCase(**i) for i in array]
 
-    def __init__(self, stdin='', description='', timeout=5, args=None, command=None):
+    def __init__(self, stdin='', description='', timeout=5, args=[], command=None):
         """Create a basic data class to store information about test cases
 
         Args:
             stdin (str): The data to be piped into standard in for the test case
             description (str): A description of what the test case is testing
             timeout (int, optional): The time to allow the test case to run. Defaults to 5.
-            args (list, optional): Any additional arguments to pass to the program for this test case. Defaults to None.
+            args (list, optional): Any additional arguments to pass to the program for this test case. Defaults to []].
             command ([type], optional): The command to be run to execute the test case. If None 
                 is specified, the default command will be used. Defaults to None.
         """
@@ -43,6 +43,9 @@ class Program:
                 Currently accepted values are 'java', 'cpp', 'c++', 'c', 'python', 'bash', and 'shell' 
             args (list, optional): The arguments to be passed to the program when it's being executed. Defaults to [].
         """
+        if not path.isdir(directory):
+            raise ValueError(f'{directory} is not a directory')
+
         self.directory = directory
         self.language = language
 
@@ -119,7 +122,7 @@ class Program:
         # Compile all java files found
         for dir_name, _, file_list in os.walk(source_directory):
             for fname in file_list:
-                if path.splitext[-1].lower() == 'java':
+                if path.splitext(fname)[-1].lower() == 'java':
                     result = subprocess.run((*javac, path.join(dir_name, fname)))
                     if result.returncode != 0:
                         return False
@@ -177,7 +180,7 @@ class Program:
         for dir_name, _, file_list in os.walk(path.join(self.directory, self.bin_dir)):
             for fname in file_list:
                 file_path = path.join(dir_name, fname)
-                if self._is_executable(file_path, self.language):
+                if self._is_executable(file_path):
                     potential_executables.append(file_path)
 
         if len(potential_executables) > 1:
@@ -194,7 +197,7 @@ class Program:
         else:
             self._executable_path = potential_executables[0]
 
-        self.generate_command(executable_path)
+        self.generate_command(self._executable_path)
 
         return True
 
@@ -205,16 +208,16 @@ class Program:
         Args:
             executable_path (str): The path to the main executable of the program
         """
-
         executable_extension = path.splitext(executable_path)[-1]
         relative_path = path.relpath(executable_path, self.directory)
+        class_path = path.relpath(executable_path, path.join(self.directory, self.bin_dir))
 
         if self.language == 'java':
             if executable_extension == '.jar':
                 self._command = ('java', '-jar', relative_path, *self._args)
 
             elif executable_extension == '.class':
-                self._command = ('java', '-cp', self.bin_dir, relative_path[-6], *self._args)
+                self._command = ('java', '-cp', self.bin_dir, class_path[:-6], *self._args)
 
         elif self.language == 'python':
             self._command = ('python', relative_path, *self._args)
@@ -237,7 +240,7 @@ class Program:
         """
 
         extension = path.splitext(file_name)[-1]
-        if os.access(path, os.X_OK) or extension == '.exe':
+        if os.access(file_name, os.X_OK) or extension == '.exe':
             return True
 
         if self.language == 'java' and extension in ['.class', '.jar']:
@@ -253,7 +256,7 @@ class Program:
 
 
     # TODO: make a TestCase class that contains information like stdin, arguments, commands, and timeout
-    def run_tests(self, tests):
+    def run_tests(self, tests, description='Running Test Cases'):
         """Runs a series of test cases on the program by starting a subprocess and piping
             the specified strings into the standard input of that subprocess.
 
@@ -263,10 +266,10 @@ class Program:
 
         self._results = []
 
-        for test in tqdm(tests):
+        for test in tqdm(tests, desc=description):
             command = self._command if test.command is None else test.command
             
-            program_pipe = subprocess.Popen((*command, *test.args), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            program_pipe = subprocess.Popen((*command, *test.args), stdin=subprocess.PIPE, stdout=subprocess.PIPE, cwd=self.directory)
             program_pipe.stdin.write(test.stdin.encode('utf-8'))
             program_pipe.stdin.close()
 
@@ -276,6 +279,8 @@ class Program:
             test_output = program_pipe.stdout.read().decode('utf-8')
             exit_code = program_pipe.returncode
             self._results.append((test_output, exit_code))
+
+        return self._results
 
 
     def set_command(self, command):
@@ -340,7 +345,7 @@ class Program:
 
         # Prints this directory name 
         if recursion_level == 0:
-            print_formatted_text(f'\033[1m{os.path.basename(dir)}\033[0m')
+            print_formatted_text(f'\033[1m{os.path.basename(directory)}\033[0m')
         else:
             print_formatted_text(f'{dir_indent}\033[1m{os.path.basename(directory)}\033[0m')
 

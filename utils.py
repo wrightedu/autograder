@@ -132,7 +132,7 @@ def generateOutputs(projectDir, programPath, testCases, language='java', timeout
     outputs = []
 
     # Run the program for each of the test cases and get the results
-    for test in tqdm(testCases):
+    for test in tqdm(testCases, desc='Running Test Cases'):
         processPipe = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, cwd=projectDir)
 
         processPipe.stdin.write(test["stdin"].encode("utf-8"))
