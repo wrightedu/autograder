@@ -42,19 +42,33 @@ if __name__ == '__main__':
     grader_outputs = generateOutputs(config_dir, configs["settings"]["graderProgram"], configs['tests'], noBin=True)
     print("Done")
     
+
     student_programs = []
     student_grades = []
 
+
     if args.project_directory is not None:
         student_programs.append(Program(args.project_directory, args.language))
+        # if student_programs.project_directory[-1] == os.sep:
+        #     args.project_directory = args.project_directory[:-1]
+        # sg = gradeStudentProgram(args.project_directory, graderOutputs, configs, args.language, not args.no_cat)
+        # studentGrades.append((os.path.basename(args.project_directory), sg))
 
     else:
+        # TODO Iterate over the directory in which the test case file is stored, looking at each student's directory
         for sub_directory in sorted(os.listdir(config_dir)):
             student_directory = os.path.join(config_dir, sub_directory)
             print(student_directory)
             if os.path.isdir(student_directory):
-                student_programs.append(Program(sub_directory, args.language))
+                student_programs.append(Program(student_directory, args.language))
+            # if os.path.isdir(join(configDir, studentDirectory)):
+            #     printFormattedText('\033[2J\033[H', end="")
+            #     printFormattedText(f'\033[1;4m{studentDirectory}\033[0m\n')
 
+            #     for dirName, subdirList, fileList in os.walk(os.path.join(configDir, studentDirectory)):
+            #         if 'src' in subdirList:
+                        # sg = gradeStudentProgram(dirName, graderOutputs, configs, args.language, not args.no_cat)
+            #             studentGrades.append((studentDirectory, sg))
 
     print(student_programs)
 
@@ -83,7 +97,7 @@ if __name__ == '__main__':
 
         sg = SmartGrader(configs['settings'], grader_outputs, student_outputs)
         sg.analyze()
-        student_grades.append((i.directory, sg))
+        student_grades.append((i.directory.split(os.sep)[-1], sg))
 
     if len(student_grades) > 1:
         while True:
