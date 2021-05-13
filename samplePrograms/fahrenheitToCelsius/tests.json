@@ -18,35 +18,35 @@
     "tests": [
         {
             "description": "Test the example given in the project description",
-            "input": "32\n"
+            "stdin": "32\n"
         },
         {
             "description": "Test the boiling point of water",
-            "input": "212\n"
+            "stdin": "212\n"
         },
         {
             "description": "Test a decent room temperature",
-            "input": "70\n"
+            "stdin": "70\n"
         },
         {
             "description": "Test the temperature that my CPU happened to be when I wrote this test",
-            "input": "95\n"
+            "stdin": "95\n"
         },
         {
             "description": "Test the point at which Celsius and Fahrenheit should be the same",
-            "input": "-40\n"
+            "stdin": "-40\n"
         },
         {
             "description": "Test the melting point of lead",
-            "input": "621\n"
+            "stdin": "621\n"
         },
         {
             "description": "Test the ignition point of paper",
-            "input": "451\n"
+            "stdin": "451\n"
         },
         {
             "description": "test absolute zero",
-            "input": "-459\n"
+            "stdin": "-459\n"
         }
     ]
 }

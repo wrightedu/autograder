@@ -4,15 +4,12 @@ from os import path
 import re as re
 import subprocess
 from tqdm import tqdm
-from math import exp
 from os.path import join
 from shutil import copyfile
 
-from binaryornot.check import is_binary
-
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
-from pygments.formatters import TerminalTrueColorFormatter, Terminal256Formatter
+from pygments.formatters import TerminalTrueColorFormatter
 
 from smartGrader import SmartGrader
 
@@ -138,7 +135,7 @@ def generateOutputs(projectDir, programPath, testCases, language='java', timeout
     for test in tqdm(testCases):
         processPipe = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, cwd=projectDir)
 
-        processPipe.stdin.write(test["input"].encode("utf-8"))
+        processPipe.stdin.write(test["stdin"].encode("utf-8"))
 
         processPipe.stdin.close()
 

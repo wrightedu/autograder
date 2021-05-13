@@ -5,13 +5,30 @@ import subprocess
 from shutil import copyfile
 from tqdm import tqdm
 from binaryornot.check import is_binary
-
-from pygments import highlight
-from pygments.lexers import get_lexer_by_name
-from pygments.formatters import TerminalTrueColorFormatter
-
 from utils import print_file, print_formatted_text
 
+
+class TestCase:
+    @staticmethod
+    def load_from_array(array):
+        return [TestCase(**i) for i in array]
+
+    def __init__(self, stdin='', description='', timeout=5, args=None, command=None):
+        """Create a basic data class to store information about test cases
+
+        Args:
+            stdin (str): The data to be piped into standard in for the test case
+            description (str): A description of what the test case is testing
+            timeout (int, optional): The time to allow the test case to run. Defaults to 5.
+            args (list, optional): Any additional arguments to pass to the program for this test case. Defaults to None.
+            command ([type], optional): The command to be run to execute the test case. If None 
+                is specified, the default command will be used. Defaults to None.
+        """
+        self.stdin = stdin
+        self.description = description
+        self.timeout = timeout
+        self.args = args
+        self.command = command
 
 class Program:
     language_extensions = ['.java', '.py', '.c', '.cpp', '.sh', '.bash', ]
@@ -182,7 +199,7 @@ class Program:
         return True
 
 
-    def generate_command(self, executable_path):
+    def generate_command(self, executable_path, args=None):
         """Sets up the command used to execute the program based on the path to the executable
 
         Args:
@@ -236,23 +253,24 @@ class Program:
 
 
     # TODO: make a TestCase class that contains information like stdin, arguments, commands, and timeout
-    def run_tests(self, tests, timeout=5):
+    def run_tests(self, tests):
         """Runs a series of test cases on the program by starting a subprocess and piping
             the specified strings into the standard input of that subprocess.
 
         Args:
-            tests (list(str)): A list of strings. Each string will be used as the standard input for a test case
-            timeout (int, optional): The amount of time to wait for the program to finish running before force killing it. Defaults to 5.
+            tests (list(TestCase)): A list of strings. Each string will be used as the standard input for a test case
         """
 
         self._results = []
 
         for test in tqdm(tests):
-            program_pipe = subprocess.Popen(self._command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-            program_pipe.stdin.write(test.encode('utf-8'))
+            command = self._command if test.command is None else test.command
+            
+            program_pipe = subprocess.Popen((*command, *test.args), stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+            program_pipe.stdin.write(test.stdin.encode('utf-8'))
             program_pipe.stdin.close()
 
-            if program_pipe.wait(timeout) is None:
+            if program_pipe.wait(test.timeout) is None:
                 program_pipe.terminate()
 
             test_output = program_pipe.stdout.read().decode('utf-8')
