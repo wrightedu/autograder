@@ -7,10 +7,9 @@ import os
 from os.path import join
 
 from utils import *
-from program import Program, TestCase
+from program import Program, TestCase, TestResult
 
 if __name__ == '__main__':
-    # TODO: Add support for grading multiple students simultaneously
     parser = argparse.ArgumentParser()
 
     # Take a path to the configuration file
@@ -32,14 +31,19 @@ if __name__ == '__main__':
     with open(join(args.config), 'r') as testCasesFile:
         configs = json.loads(testCasesFile.read())  
 
+    
+    test_cases = TestCase.load_from_array(configs['tests'])
+
     # Generate the grader outputs
     print("Generating grader outputs...")
     config_dir = os.path.dirname(args.config)
-    grader_path = join(config_dir, configs["settings"]["graderProgram"])
+    grader_directory = join(config_dir, configs["settings"]["graderDirectory"])
+    print(grader_directory)
+    grader_program = Program(grader_directory, args.language)
+    print(grader_program.compile())
+    print(grader_program.find_main_executable())
+    grader_outputs = [(i.stdout, i.exit_code) for i in grader_program.run_tests(test_cases)]
 
-    test_cases = TestCase.load_from_array(configs['tests'])
-
-    grader_outputs = generateOutputs(config_dir, configs["settings"]["graderProgram"], configs['tests'], noBin=True)
     print("Done")
     
 
@@ -49,60 +53,50 @@ if __name__ == '__main__':
 
     if args.project_directory is not None:
         student_programs.append(Program(args.project_directory, args.language))
-        # if student_programs.project_directory[-1] == os.sep:
-        #     args.project_directory = args.project_directory[:-1]
-        # sg = gradeStudentProgram(args.project_directory, graderOutputs, configs, args.language, not args.no_cat)
-        # studentGrades.append((os.path.basename(args.project_directory), sg))
 
     else:
         # TODO Iterate over the directory in which the test case file is stored, looking at each student's directory
         for sub_directory in sorted(os.listdir(config_dir)):
             student_directory = os.path.join(config_dir, sub_directory)
-            print(student_directory)
-            if os.path.isdir(student_directory):
+            if os.path.isdir(student_directory) and student_directory != grader_directory:
                 student_programs.append(Program(student_directory, args.language))
-            # if os.path.isdir(join(configDir, studentDirectory)):
-            #     printFormattedText('\033[2J\033[H', end="")
-            #     printFormattedText(f'\033[1;4m{studentDirectory}\033[0m\n')
 
-            #     for dirName, subdirList, fileList in os.walk(os.path.join(configDir, studentDirectory)):
-            #         if 'src' in subdirList:
-                        # sg = gradeStudentProgram(dirName, graderOutputs, configs, args.language, not args.no_cat)
-            #             studentGrades.append((studentDirectory, sg))
+    if not args.no_cat:
+        for i in student_programs:
 
-    print(student_programs)
-
-    for i in student_programs:
-        if not args.no_cat:
             i.print_source_files()
 
-        printFormattedText('\033[1;4mProject Directory Listing\033[0m')
-        i.print_directory_listing()
+            print_formatted_text('\033[1;4mProject Directory Listing\033[0m')
+            i.print_directory_listing()
 
-        continue_grading = input('\nContinue grading? [Y/n] ')
+            continue_grading = input('\nGrade Student Submission? [Y/n] ')
 
-        if 'n' in continue_grading.lower():
-            continue
-
-
-        compilation_successful = i.compile()
-
-        if not compilation_successful:
-            print('Compilation failed')
-            continue
+            i.skip_grading = 'n' in continue_grading.lower()
 
 
-        i.find_main_executable()
-        student_outputs = i.run_tests(test_cases)
+    for student in student_programs:
+        if not student.skip_grading:
+            compilation_successful = student.compile()
 
-        sg = SmartGrader(configs['settings'], grader_outputs, student_outputs)
-        sg.analyze()
-        student_grades.append((i.directory.split(os.sep)[-1], sg))
+            if not compilation_successful:
+                print('Compilation failed')
+                continue
+
+
+            student.find_main_executable()
+            student_outputs = [(j.stdout, j.exit_code) for j in student.run_tests(test_cases, description=f'Testing Student {student.directory.split(os.sep)[-1]} Submission')]
+
+            sg = SmartGrader(configs['settings'], grader_outputs, student_outputs)
+            sg.analyze()
+            student_grades.append((student.directory.split(os.sep)[-1], sg))
+
+        else:
+            student_grades.append((student.directory.split(os.sep)[-1], None))
 
     if len(student_grades) > 1:
         while True:
-            printFormattedText('\033[2J\033[H', end="")
-            printTable(student_grades, configs['tests'])
+            print_formatted_text('\033[2J\033[H', end="")
+            print_table(student_grades, test_cases)
 
             moreFeedback = input("Enter a student name or the displayed ID number (including the #) for more feedback. Leave blank and press enter to exit: ")
 
@@ -132,20 +126,20 @@ if __name__ == '__main__':
 
             studentName, sg = student_grades[studentIdx]
 
-            printTestResults(sg, configs["tests"], studentName)
+            print_test_cases(sg, configs["tests"], studentName)
 
             if False in [sg.getGrade(i) >= sg.passThreshold for i in range(len(configs["tests"]))]:
                 # Check to see if you want to continue grading
                 giveFullOutput = input('Would you like to view the student output for the failed test cases? [Y/n] ')
                 if 'n' not in giveFullOutput.lower():
-                    printTestOutputsWithDifferencesHighlightedInPrettyColorsAndBoldTextUnlessIfYoureOnWindowsBecauseWindowsIsBadAndDoesntLikePrettyThings(sg, configs["tests"])
+                    print_test_case_results(sg, configs["tests"])
 
             input("Press enter to continue...")
     else:
         studentName, sg = student_grades[0]
-        printTestResults(sg, configs["tests"], studentName)
+        print_test_cases(sg, configs["tests"], studentName)
 
         # Check to see if you want to continue grading
         giveFullOutput = input('Would you like to view the student output for the failed test cases? [Y/n] ')
         if 'n' not in giveFullOutput.lower():
-            printTestOutputsWithDifferencesHighlightedInPrettyColorsAndBoldTextUnlessIfYoureOnWindowsBecauseWindowsIsBadAndDoesntLikePrettyThings(sg, configs["tests"])
+            print_test_case_results(sg, configs["tests"])

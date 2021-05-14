@@ -1,0 +1,55 @@
+{
+    "settings": {
+        "penalties": {
+            "typeMismatch": 20,
+            "tokenCountMismatch": 50,
+            "numericMismatch": 1000,
+            "characterMismatch": 1,
+            "runFailure": 100
+        },
+
+        "penaltyWeight": 0.1,
+        "passThreshold": 99.5,
+        "collapseWhitespace": true, 
+
+        "graderDirectory": "Grader"
+
+    },
+    "tests": [
+        {
+            "description": "Test input with world",
+            "stdin": "world",
+            "runner_args": ["valgrind"],
+            "required_strings_stderr": "All heap blocks were freed -- no leaks are possible",
+            "timeout": 30
+        },
+        {
+            "description": "Name is Bob",
+            "stdin": "Bob",
+            "runner_args": ["valgrind"],
+            "required_strings_stderr": "All heap blocks were freed -- no leaks are possible",
+            "timeout": 60
+        },
+        {
+            "description": "Name with spaces",
+            "stdin": "Marie Joseph Paul Yves Roch Gilbert du Motier",
+            "runner_args": ["valgrind"],
+            "required_strings_stderr": "All heap blocks were freed -- no leaks are possible",
+            "timeout": 60
+        },
+        {
+            "description": "Name that's just a number. He has no name",
+            "stdin": "24601",
+            "runner_args": ["valgrind"],
+            "required_strings_stderr": "All heap blocks were freed -- no leaks are possible",
+            "timeout": 60
+        },
+        {
+            "description": "Very long name",
+            "stdin": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "runner_args": ["valgrind"],
+            "required_strings_stderr": "All heap blocks were freed -- no leaks are possible",
+            "timeout": 60
+        }
+    ]
+}

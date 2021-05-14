@@ -1,3 +1,4 @@
+from datetime import time
 import os
 from os import path
 import re
@@ -13,7 +14,7 @@ class TestCase:
     def load_from_array(array):
         return [TestCase(**i) for i in array]
 
-    def __init__(self, stdin='', description='', timeout=5, args=[], command=None):
+    def __init__(self, stdin='', description='', timeout=5, weight=1, runner_args=[], args=[], command=None, required_strings=[], required_strings_stderr=[]):
         """Create a basic data class to store information about test cases
 
         Args:
@@ -27,8 +28,21 @@ class TestCase:
         self.stdin = stdin
         self.description = description
         self.timeout = timeout
+        self.weight = weight
+        self.runner_args = runner_args
         self.args = args
         self.command = command
+        self.required_strings = required_strings
+        self.required_strings_stderr = required_strings_stderr
+
+class TestResult:
+    def __init__(self, test_case, stdout, stderr, exit_code=0, timeout=False):
+        self.test_case = test_case
+        self.stdout = stdout
+        self.stderr = stderr
+        self.exit_code = exit_code
+        self.timeout = timeout
+
 
 class Program:
     language_extensions = ['.java', '.py', '.c', '.cpp', '.sh', '.bash', ]
@@ -52,6 +66,8 @@ class Program:
         self.src_bin_present = path.isdir(path.join(directory, 'src')) and path.isdir(path.join(directory, 'bin'))
         self.src_dir = 'src' if self.src_bin_present else ''
         self.bin_dir = 'bin' if self.src_bin_present else ''
+
+        self.skip_grading = False
 
         self._command = None
         self._args = args
@@ -114,6 +130,9 @@ class Program:
         Returns:
             bool: True if all compilations were successfully, false if any of them encountered an error
         """
+
+        print("Compiling java project...")
+
         source_directory = path.join(self.directory, self.src_dir)
         target_directory = path.join(self.directory, self.bin_dir)
 
@@ -122,7 +141,7 @@ class Program:
         # Compile all java files found
         for dir_name, _, file_list in os.walk(source_directory):
             for fname in file_list:
-                if path.splitext(fname)[-1].lower() == 'java':
+                if path.splitext(fname)[-1].lower() == '.java':
                     result = subprocess.run((*javac, path.join(dir_name, fname)))
                     if result.returncode != 0:
                         return False
@@ -226,7 +245,7 @@ class Program:
             self._command = ('bash', relative_path, *self._args)
 
         else:
-            self._command = (f'./{relative_path}', *self._args)
+            self._command = (f'.{os.sep}{relative_path}', *self._args)
 
 
     def _is_executable(self, file_name):
@@ -255,7 +274,6 @@ class Program:
         return self.language in ['c', 'cpp', 'c++'] and extension in [''] and is_binary(file_name)
 
 
-    # TODO: make a TestCase class that contains information like stdin, arguments, commands, and timeout
     def run_tests(self, tests, description='Running Test Cases'):
         """Runs a series of test cases on the program by starting a subprocess and piping
             the specified strings into the standard input of that subprocess.
@@ -269,16 +287,23 @@ class Program:
         for test in tqdm(tests, desc=description):
             command = self._command if test.command is None else test.command
             
-            program_pipe = subprocess.Popen((*command, *test.args), stdin=subprocess.PIPE, stdout=subprocess.PIPE, cwd=self.directory)
+            program_pipe = subprocess.Popen((*test.runner_args, *command, *test.args), stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.directory)
             program_pipe.stdin.write(test.stdin.encode('utf-8'))
             program_pipe.stdin.close()
 
-            if program_pipe.wait(test.timeout) is None:
+            timeout = False
+
+            try:
+                program_pipe.wait(test.timeout)
+            except subprocess.TimeoutExpired:
                 program_pipe.terminate()
+                timeout = True
 
             test_output = program_pipe.stdout.read().decode('utf-8')
+            test_errors = program_pipe.stderr.read().decode('utf-8')
+
             exit_code = program_pipe.returncode
-            self._results.append((test_output, exit_code))
+            self._results.append(TestResult(test, test_output, test_errors, exit_code, timeout))
 
         return self._results
 
@@ -299,7 +324,7 @@ class Program:
         Args:
             executable_path (str): The path to the executable file, relative to the project base directory
         """
-
+        self._main_executable = executable_path
         self.generate_command(executable_path)
 
 

@@ -12,7 +12,7 @@
         "passThreshold": 100,
         "collapseWhitespace": true,
 
-        "graderProgram": "MasterGrader"
+        "graderDirectory": "Grader"
 
     },
     "tests": [
