@@ -124,7 +124,7 @@ class SmartGrader():
             print(f'Configuration setting {i} was not recognized')
 
 
-    def load_penalties(self, type_penalty=20, token_count_penalty=50, numeric_penalty=10, character_penalty=50, run_failure_penalty=100, compile_failure_penalty=100, timeout_penalty=100, missing_string_penalty=100, **kwargs):
+    def load_penalties(self, type_penalty=20, token_count_penalty=50, numeric_penalty=10, character_penalty=50, run_failure_penalty=100, compile_failure_penalty=1000, timeout_penalty=100, missing_string_penalty=100, **kwargs):
         self.type_penalty = type_penalty
         self.token_count_penalty = token_count_penalty
         self.numeric_penalty = numeric_penalty
