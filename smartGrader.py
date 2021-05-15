@@ -108,12 +108,13 @@ class SmartGrader():
         self.student_tokens = None
 
 
-    def load_settings(self, penalties={}, penalty_weight=0.1, pass_threshold=95, collapse_whitespace=True, all_tokens_strings=False, enforce_floating_point=False,  language='java', connect_adjacent_words=False, grader_directory='Grader', student_directory='Student', **kwargs):
+    def load_settings(self, penalties={}, penalty_weight=0.1, pass_threshold=95, collapse_whitespace=True, all_tokens_strings=False, ignore_nonnumeric_tokens=False, enforce_floating_point=False,  language='java', connect_adjacent_words=False, grader_directory='Grader', student_directory='Student', **kwargs):
         self.load_penalties(**penalties)
         self.penalty_weight = penalty_weight
         self.pass_threshold = pass_threshold
         self.collapse_whitespace = collapse_whitespace
         self.all_tokens_strings = all_tokens_strings
+        self.ignore_nonnumeric_tokens = ignore_nonnumeric_tokens
         self.enforce_floating_point = enforce_floating_point
         self.language = language
         self.connect_adjacent_words = connect_adjacent_words
@@ -295,7 +296,8 @@ class SmartGrader():
                 #   will almost be the same as the percent difference, but doesn't have the unfortunate side effect
                 #   of blowing up in a nasty way as it gets close to zero
                 if isinstance(grader_value, (float, int)):
-                    total_error += self.numeric_penalty * abs(grader_value - student_value) / (log(cosh(grader_value)) + 1)
+                    scale = log(cosh(grader_value)) + 0.25 if abs(grader_value) < 0.292055305409401 else grader_value
+                    total_error += self.numeric_penalty * abs(grader_value - student_value) / scale
 
                 # If they are strings, the penalty will be proportional to the number of characters that are different
                 else:
@@ -496,6 +498,7 @@ class SmartGrader():
             return []
 
         possible_tokens = list(filter(lambda x: not(x.token_type == TokenType.whitespace and self.collapse_whitespace), self._split_tokens(line_a)))
+        possible_tokens = list(filter(lambda x: x.token_type in (TokenType.integer, TokenType.floating) or not self.ignore_nonnumeric_tokens, possible_tokens))
 
         if PRINT_TOKENS:
             print(f'Tokenization of {line_a.replace}:')

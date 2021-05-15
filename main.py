@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     
     test_cases = TestCase.load_from_array(configs['tests'])
-    language = configs['settings']['language']
+    language = configs['settings']['language'] if 'language' in configs['settings'] else 'java'
 
     # Generate the grader outputs
     print("Generating grader outputs...")

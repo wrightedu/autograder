@@ -1,20 +1,14 @@
 {
     "settings": {
         "penalties": {
-            "typeMismatch": 20,
-            "tokenCountMismatch": 50,
-            "numericMismatch": 1000,
-            "characterMismatch": 0,
-            "runFailure": 100,
-            "compileFailure": 100
+            "numeric_penalty": 1000,
+            "character_penalty": 0
         },
 
-        "penaltyWeight": 0.1,
-        "passThreshold": 99.5,
-        "collapseWhitespace": true,
-
-        "graderDirectory": "Grader"
-
+        "pass_threshold": 99.5,
+        "ignore_nonnumeric_tokens": true,
+        "grader_directory": "Grader",
+        "student_directory": "Student"
     },
     "tests": [
         {

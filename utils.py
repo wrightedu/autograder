@@ -39,7 +39,7 @@ def print_test_cases(sg, test_cases, student_name=""):
     if len(student_name) > 0:
         student_name = " for " + student_name
 
-    print_formatted_text(f'\n\033[1;4mTest Case Results {student_name}\033[0m\n')
+    print_formatted_text(f'\n\033[1;4mTest Case Results{student_name}\033[0m\n')
     for i, test in enumerate(test_cases):
         grade = sg.get_test_grade(i)
 
@@ -83,7 +83,7 @@ def print_test_cases(sg, test_cases, student_name=""):
 def print_test_case_results(sg, testCases):
     for i, test in enumerate(testCases):
         if sg.get_test_grade(i) < sg.pass_threshold:
-            print_formatted_text(f'\n\033[1m{test["description"]}:\033[0m\n')
+            print_formatted_text(f'\n({i}) \033[1m{test["description"]}:\033[0m\n')
 
             test_cases_passed = [output.exit_code == 0 for output in sg.student_results]
             grader_tokens, student_tokens = sg.get_combined_vectors(i, test_cases_passed)

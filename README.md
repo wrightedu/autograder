@@ -46,6 +46,7 @@ The Json is divided into two main parts, `settings` and `tests`:
   - `enforce_floating_point`: (bool, default false) If the grader has a decimal point in the output, the student must too and vice versa. If false, `10.0` and `10` will
     be considered to be equal.
   - `grader_directory`: (path, default 'Grader') The relative path from the config json to the directory containing all of the grader code.
+  - `ignore_nonumeric_tokens`: (bool, default false) The opposite of `all_tokens_strings`. Discards any tokens that aren't either ints or floats when grading.
   - `language`: (string, default 'java') The language that the program being graded is written in. Current valid options are `'bash'`, `'c'`, `'cpp'`, `'c++'`,
     `'java'`, `'python'`, `'sh'`, and `'shell'`.
   - `pass_threshold`: (float, default 95) The grade out of 100 considered to be a passing grade for the tests. Mostly only effects the formatting of output.
@@ -124,3 +125,6 @@ An exported yaml of the conda environment used to develop the autograder can be 
 - A web interface for grading. Upload config, Grader, and Student zip and go
 - Add a similar field to the `required_strings` that can be used to specify a list of regexes that need to match the student output
 - Add another thing kinda like `required_strings`, only that all it does is that it automatically flags any matching text as a token
+- The process of breaking the ouput into tokens still leaves a bit to be desired
+- The ability to capture and display the stdin and stdout of the program alongside each other. The stdout will need to be unbuffered to do this. Look at pty?
+- A prompt to display the student's code after inspecting incorrect results?
