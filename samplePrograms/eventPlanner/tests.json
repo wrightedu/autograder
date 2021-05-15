@@ -1,48 +1,42 @@
 {
     "settings": {
         "penalties": {
-            "typeMismatch": 20,
-            "tokenCountMismatch": 50,
-            "numericMismatch": 100,
-            "characterMismatch": 1,
-            "runFailure": 100
+            "numeric_penalty": 1000,
+            "character_penalty": 1,
+            "run_failure_penalty": 100
         },
 
-        "penaltyWeight": 0.1,
-        "passThreshold": 99.5,
-        "collapseWhitespace": true, 
-
-        "graderProgram": "MasterGrader"
-
+        "grader_directory": "Grader",
+        "student_directory": "Student"
     },
     "tests": [
         {
             "description": "Test the example given in the project description",
-            "input": "10\n4\n"
+            "stdin": "10\n4\n"
         },
         {
             "description": "Twenty two people, each bring one guest",
-            "input": "22\n1\n"
+            "stdin": "22\n1\n"
         },
         {
             "description": "Twelve people, each bring twelve guests",
-            "input": "12\n12\n"
+            "stdin": "12\n12\n"
         },
         {
             "description": "Seven people, each bring five guests",
-            "input": "7\n5\n"
+            "stdin": "7\n5\n"
         },
         {
             "description": "Big party :)",
-            "input": "137\n11\n"
+            "stdin": "137\n11\n"
         },
         {
             "description": "No guests",
-            "input": "17\n0\n"
+            "stdin": "17\n0\n"
         },
         {
             "description": "No guests part 2",
-            "input": "3456\n0\n"
+            "stdin": "3456\n0\n"
         }
     ]
 }

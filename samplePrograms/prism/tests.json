@@ -1,57 +1,51 @@
 {
     "settings": {
         "penalties": {
-            "typeMismatch": 20,
-            "tokenCountMismatch": 50,
-            "numericMismatch": 1000,
-            "characterMismatch": 0,
-            "runFailure": 100,
-            "compileFailure": 100
+            "numeric_penalty": 1000,
+            "character_penalty": 0
         },
 
-        "penaltyWeight": 0.1,
-        "passThreshold": 99.5,
-        "collapseWhitespace": true,
-
-        "graderProgram": "MasterGrader"
-
+        "pass_threshold": 99.5,
+        "ignore_nonnumeric_tokens": true,
+        "grader_directory": "Grader",
+        "student_directory": "Student"
     },
     "tests": [
         {
             "description": "Test the example given in the project description",
-            "input": "12.1\n8.7\n3.6\n"
+            "stdin": "12.1\n8.7\n3.6\n"
         },
         {
             "description": "Test having a lot of extra digits",
-            "input": "22.193579856785638\n16.754467254837564986\n5.534765823756937856348956\n"
+            "stdin": "22.193579856785638\n16.754467254837564986\n5.534765823756937856348956\n"
         },
         {
             "description": "Test a very long and skinny prism",
-            "input": "1.2\n1234.2\n2.74\n"
+            "stdin": "1.2\n1234.2\n2.74\n"
         },
         {
             "description": "Test a very flat prism",
-            "input": "129.34\n0.7\n428.23\n"
+            "stdin": "129.34\n0.7\n428.23\n"
         },
         {
             "description": "Test a very small prism",
-            "input": "0.1\n0.1\n0.1\n"
+            "stdin": "0.1\n0.1\n0.1\n"
         },
         {
             "description": "Test some random numbers",
-            "input": "245.12\n272.53\n110.75\n"
+            "stdin": "245.12\n272.53\n110.75\n"
         },
         {
             "description": "Test a prism with no length",
-            "input": "0.00\n12.34\n56.78\n"
+            "stdin": "0.00\n12.34\n56.78\n"
         },
         {
             "description": "Test a prism with no width",
-            "input": "98.72\n0.00\n54.32\n"
+            "stdin": "98.72\n0.00\n54.32\n"
         },
         {
             "description": "Test a prism with no height",
-            "input": "13.42\n57.86\n0.00\n"
+            "stdin": "13.42\n57.86\n0.00\n"
         }
     ]
 }
