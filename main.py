@@ -8,6 +8,7 @@ from os.path import join
 
 from utils import *
 from program import Program, TestCase, TestResult
+from smartGrader import SmartGrader
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -16,13 +17,10 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--config', type=str, default=None, help='The relative filepath to the config.json you would like to use')
 
     # Take a path to the student's source directory
-    parser.add_argument('-d', '--project-directory', type=str, default=None, help='The relative filepath to the project directory of the student code')
+    parser.add_argument('-s', '--student-directory', type=str, default=None, help='Selects a specific student directory for grading. Overrides the value set in config')
 
     # Flag to disable printing student directory stuff
     parser.add_argument('-n', '--no-cat', action='store_true', help='Disable catting student files')
-
-    # Flag to select what language is being graded
-    parser.add_argument('-l', '--language', type=str, default='java', choices=['java', 'c', 'c++', 'cpp', 'python', 'bash', 'shell'], help='The language of the assignment being graded')
 
     args = parser.parse_args()
 
@@ -33,33 +31,34 @@ if __name__ == '__main__':
 
     
     test_cases = TestCase.load_from_array(configs['tests'])
+    language = configs['settings']['language']
 
     # Generate the grader outputs
     print("Generating grader outputs...")
     config_dir = os.path.dirname(args.config)
-    grader_directory = join(config_dir, configs["settings"]["graderDirectory"])
+    grader_directory = join(config_dir, configs["settings"]["grader_directory"])
     print(grader_directory)
-    grader_program = Program(grader_directory, args.language)
+    grader_program = Program(grader_directory, language)
     print(grader_program.compile())
     print(grader_program.find_main_executable())
-    grader_outputs = [(i.stdout, i.exit_code) for i in grader_program.run_tests(test_cases)]
+    grader_outputs = grader_program.run_tests(test_cases)
 
-    print("Done")
-    
+    print("Done")   
 
     student_programs = []
     student_grades = []
+    student_projects_directory = join(config_dir, configs["settings"]["student_directory"])
 
 
-    if args.project_directory is not None:
-        student_programs.append(Program(args.project_directory, args.language))
-
-    else:
-        # TODO Iterate over the directory in which the test case file is stored, looking at each student's directory
-        for sub_directory in sorted(os.listdir(config_dir)):
-            student_directory = os.path.join(config_dir, sub_directory)
+    if args.student_directory is None:
+        for sub_directory in sorted(os.listdir(student_projects_directory)):
+            student_directory = os.path.join(student_projects_directory, sub_directory)
             if os.path.isdir(student_directory) and student_directory != grader_directory:
-                student_programs.append(Program(student_directory, args.language))
+                student_programs.append(Program(student_directory, language))
+
+    else: 
+        student_programs.append(Program(args.student_directory, language))
+        
 
     if not args.no_cat:
         for i in student_programs:
@@ -84,7 +83,7 @@ if __name__ == '__main__':
 
 
             student.find_main_executable()
-            student_outputs = [(j.stdout, j.exit_code) for j in student.run_tests(test_cases, description=f'Testing Student {student.directory.split(os.sep)[-1]} Submission')]
+            student_outputs = student.run_tests(test_cases, description=f'Testing Student {student.directory.split(os.sep)[-1]} Submission')
 
             sg = SmartGrader(configs['settings'], grader_outputs, student_outputs)
             sg.analyze()
@@ -128,7 +127,7 @@ if __name__ == '__main__':
 
             print_test_cases(sg, configs["tests"], studentName)
 
-            if False in [sg.getGrade(i) >= sg.passThreshold for i in range(len(configs["tests"]))]:
+            if False in [sg.get_test_grade(i) >= sg.pass_threshold for i in range(len(configs["tests"]))]:
                 # Check to see if you want to continue grading
                 giveFullOutput = input('Would you like to view the student output for the failed test cases? [Y/n] ')
                 if 'n' not in giveFullOutput.lower():

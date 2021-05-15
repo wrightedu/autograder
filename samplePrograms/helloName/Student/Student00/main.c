@@ -4,10 +4,11 @@
 #define MAX_NAME_LENGTH 1024
 
 int main() {
-    char *name = (char *)malloc(sizeof(char) * MAX_NAME_LENGTH);
+    char *name = NULL;
+    size_t l = 0;
     printf("Hello, please enter your name: ");
-    scanf("%s", name);
-    printf("Hello %d! It's good to meet you.\n", name);
+    getline(&name, &l, stdin);
+    printf("Hello %s! It's good to meet you.\n", name);
     free(name);
     return 0;
 }

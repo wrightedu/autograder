@@ -1,17 +1,12 @@
 import os
-from os import path
 
 import re as re
-import subprocess
-from tqdm import tqdm
-from os.path import join
-from shutil import copyfile
 
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name
 from pygments.formatters import TerminalTrueColorFormatter
 
-from smartGrader import SmartGrader
+# from newSmartGrader import SmartGrader
 
 FORCE_WINDOWS_RENDERING = False
 
@@ -38,84 +33,80 @@ def print_formatted_text(text, end='\n', force_windows_rendering=False):
 
 
 def print_test_cases(sg, test_cases, student_name=""):
-    totalGrade = 0
-    testsPassed = 0
+    total_grade = 0
+    tests_passed = 0
 
     if len(student_name) > 0:
         student_name = " for " + student_name
 
     print_formatted_text(f'\n\033[1;4mTest Case Results {student_name}\033[0m\n')
     for i, test in enumerate(test_cases):
-        grade = sg.getGrade(i)
+        grade = sg.get_test_grade(i)
 
-        totalGrade += grade
+        total_grade += grade
 
         if grade == 100:
             print_formatted_text(
                 f'\033[32;1m{CHECKMARK}\033[0m ({i}) {test["description"]}:')
-            testsPassed += 1
+            tests_passed += 1
             print_formatted_text(f'\033[2;3m{grade:-3.0f}%\033[0m')
-        elif grade >= sg.passThreshold:
+        elif grade >= sg.pass_threshold:
             print_formatted_text(
                 f'\033[32;1m{CHECKMARK}\033[0m ({i}) {test["description"]}:')
-            testsPassed += 1
+            tests_passed += 1
             print_formatted_text(
                 f'\033[2;3m{min(grade, 99):-3.0f}%\033[0m', end='')
-            feedback = sg.getFeedback(i)
-            firstFeedback = True
+            feedback = sg.get_test_feedback(i)
+            first_feedback = True
             for f in feedback:
-                print(f'    {f}' if firstFeedback else f'        {f}')
-                firstFeedback = False
+                print(f'    {f}' if first_feedback else f'        {f}')
+                first_feedback = False
         else:
             print_formatted_text(
                 f'\033[31;1m{XMARK}\033[0m ({i}) {test["description"]}:')
             print_formatted_text(
                 f'\033[2;3m{min(grade, 99):-3.0f}%\033[0m', end='')
-            feedback = sg.getFeedback(i)
-            firstFeedback = True
+            feedback = sg.get_test_feedback(i)
+            first_feedback = True
             for f in feedback:
-                print(f'    {f}' if firstFeedback else f'        {f}')
-                firstFeedback = False
+                print(f'    {f}' if first_feedback else f'        {f}')
+                first_feedback = False
         print()
 
-    averageGrade = totalGrade / len(test_cases)
+    averageGrade = total_grade / len(test_cases)
 
     print_formatted_text(
-        f'\033[1mTests Passed: [{testsPassed}/{len(test_cases)}]')
+        f'\033[1mTests Passed: [{tests_passed}/{len(test_cases)}]')
     print_formatted_text(f'Overall Grade: {averageGrade:.02f}%\033[0m\n')
 
 
 def print_test_case_results(sg, testCases):
     for i, test in enumerate(testCases):
-        if sg.getGrade(i) < sg.passThreshold:
+        if sg.get_test_grade(i) < sg.pass_threshold:
             print_formatted_text(f'\n\033[1m{test["description"]}:\033[0m\n')
 
-            testCasePassed = [output[1] == 0 for output in sg.studentOutputs]
-            graderTokens, studentTokens = sg.getCombinedVectors(
-                i, testCasePassed)
+            test_cases_passed = [output.exit_code == 0 for output in sg.student_results]
+            grader_tokens, student_tokens = sg.get_combined_vectors(i, test_cases_passed)
 
-            lastTokenEnd = 0
+            last_token_end = 0
 
-            for tokenNum, token in enumerate(studentTokens):
-                graderToken = graderTokens[min(
-                    tokenNum, len(graderTokens) - 1)]
+            for token_num, token in enumerate(student_tokens):
+                grader_token = grader_tokens[min(token_num, len(grader_tokens) - 1)]
 
-                graderStr = sg.graderOutputs[i][0][graderToken.start:graderToken.end]
-                studentStr = sg.studentOutputs[i][0][token.start:token.end]
+                grader_string = sg.grader_results[i].stdout[grader_token.start:grader_token.end]
+                student_string = sg.student_results[i].stdout[token.start:token.end]
 
-                colorCode = '32' if graderStr == studentStr else '31'
+                color = '32' if grader_string == student_string else '31'
 
-                print(sg.studentOutputs[i][0][lastTokenEnd:token.start], end='')
-                print_formatted_text(
-                    f'\033[1;{colorCode}m{studentStr}\033[0m', end='')
+                print(sg.student_results[i].stdout[last_token_end:token.start], end='')
+                print_formatted_text(f'\033[1;{color}m{student_string}\033[0m', end='')
 
-                if graderStr != studentStr:
-                    print_formatted_text(
-                        f'\033[2;3m[{graderStr}]\033[0m', end='')
+                if grader_string != student_string:
+                    print_formatted_text(f'\033[2;3m[{grader_string}]\033[0m', end='')
 
-                lastTokenEnd = token.end
+                last_token_end = token.end
 
-            print(sg.studentOutputs[i][0][lastTokenEnd:])
+            print(sg.student_results[i].stdout[last_token_end:])
 
 
 # TODO See about simplifying this one a bit. Maybe there's a module that would let you keep the pretty colors?
@@ -148,12 +139,12 @@ def print_table(student_grades, test_cases):
             total_weight = 0
 
             for i, test_case in enumerate(test_cases):
-                grade = sg.getGrade(i)
+                grade = sg.get_test_grade(i)
 
                 total_grade += grade * test_case.weight
                 total_weight += test_case.weight
 
-                if grade < sg.passThreshold:
+                if grade < sg.pass_threshold:
                     grade = min(grade, 99)
                     pass_fail = f'\033[31;1m{XMARK}\033[0m'
 
@@ -167,7 +158,7 @@ def print_table(student_grades, test_cases):
             else:
                 total_grade = 100
 
-            if total_grade < sg.passThreshold:
+            if total_grade < sg.pass_threshold:
                 total_grade = min(total_grade, 99)
                 pass_fail = f'\033[31;1m{XMARK}\033[0m'
 
