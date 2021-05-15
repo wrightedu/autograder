@@ -1,6 +1,7 @@
 {
     "settings": {
         "all_tokens_strings": true,
+        "connect_adjacent_words": true,
         "language": "c",
 
         "grader_directory": "Grader",
@@ -32,7 +33,7 @@
             "description": "Test for memory leaks",
             "stdin": "My name is Sir Lancelot of Camelot.",
             "runner_args": ["valgrind"],
-            "required_strings_stderr": "All heap blocks were freed -- no leaks are possible",
+            "required_strings_stderr": ["All heap blocks were freed -- no leaks are possible"],
             "timeout": 60
         }
     ]

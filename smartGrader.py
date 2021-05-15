@@ -108,7 +108,7 @@ class SmartGrader():
         self.student_tokens = None
 
 
-    def load_settings(self, penalties={}, penalty_weight=0.1, pass_threshold=95, collapse_whitespace=True, all_tokens_strings=False, enforce_floating_point=False,  language='java', grader_directory='Grader', student_directory='Student', **kwargs):
+    def load_settings(self, penalties={}, penalty_weight=0.1, pass_threshold=95, collapse_whitespace=True, all_tokens_strings=False, enforce_floating_point=False,  language='java', connect_adjacent_words=False, grader_directory='Grader', student_directory='Student', **kwargs):
         self.load_penalties(**penalties)
         self.penalty_weight = penalty_weight
         self.pass_threshold = pass_threshold
@@ -116,6 +116,7 @@ class SmartGrader():
         self.all_tokens_strings = all_tokens_strings
         self.enforce_floating_point = enforce_floating_point
         self.language = language
+        self.connect_adjacent_words = connect_adjacent_words
         _ = grader_directory
         _ = student_directory
 
@@ -245,9 +246,20 @@ class SmartGrader():
         test_case_passed = [i.exit_code == 0 for i in self.student_results]
         grader_tokens, student_tokens = self.get_combined_vectors(test_num, test_case_passed)
 
-        if self.student_results[test_num].exit_code != 0 and self.grader_results[test_num].exit_code == 0:
+        student_result = self.student_results[test_num]
+
+        if student_result.exit_code != 0 and self.grader_results[test_num].exit_code == 0:
             feedback.append("Student program encountered an unexpected runtime exception")
             total_error += self.run_failure_penalty
+
+        for i in [i for i in student_result.test_case.required_strings if i not in student_result.stdout]:
+            feedback.append(f'Missing string \'{i}\' in standard output')
+            total_error += self.missing_string_penalty
+
+        for i in [i for i in student_result.test_case.required_strings_stderr if i not in student_result.stderr]:
+            feedback.append(f'Missing string \'{i}\' in standard error')
+            total_error += self.missing_string_penalty
+
 
         if len(grader_tokens) != len(student_tokens):
             total_error += self.token_count_penalty
@@ -498,7 +510,7 @@ class SmartGrader():
         else:
             trimmed_line_a = line_a[first_difference:last_difference]
             trimmed_line_b = line_b[first_difference:last_difference]
-        
+
         raw_diffs = list(ndiff(trimmed_line_a, trimmed_line_b))
         diffs = []
 
@@ -523,7 +535,15 @@ class SmartGrader():
             start = max(token.start - first_difference, 0)
             end = max(token.end - first_difference, 0)
             if any(i for i in diffs[start:end] if i):
-                token_vector.append(token)
+                if self.connect_adjacent_words and token_vector:
+                    if token_vector[-1].token_type == TokenType.word and token.token_type == TokenType.word:
+                        start = token_vector[-1].start
+                        end = token.end
+                        token_vector[-1] = Token(line_a[start:end], start, end, TokenType.word)
+                    else:
+                        token_vector.append(token)
+                else:
+                    token_vector.append(token)
 
         if PRINT_TOKENS:
             print_formatted_text('\033[1m|\033[0m'.join((f'\033[1m{i.value}\033[0m' if i in token_vector else i.value for i in possible_tokens))) 
@@ -534,6 +554,6 @@ class SmartGrader():
             elif token.token_type == TokenType.floating:
                 token.value = float(token.value)
 
-        
+
         # TODO Maybe make it so that adjacent words can be combined into a single token?
         return token_vector
