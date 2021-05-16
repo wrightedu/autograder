@@ -2,14 +2,15 @@
 
 # A quick start at a smart grading program
 import re as re
-from functools import reduce
 from difflib import ndiff
-from math import exp, log, cosh
+from enum import Enum
+from functools import reduce
+from math import cosh, exp, log
+
+from lark import Lark
 
 from program import TestCase, TestResult
 from utils import print_formatted_text
-
-from enum import Enum
 
 # These are all debug flags
 DEBUG = False
@@ -17,6 +18,22 @@ PRINT_COMBINED = DEBUG or False
 PRINT_LINES = DEBUG or False
 PRINT_OUTPUTS = DEBUG or False
 PRINT_TOKENS = DEBUG or False
+PRINT_LEXER = DEBUG or False
+
+TOKEN_GRAMMER = '''
+start: (float | int | word | space)*
+
+INTEGER: "0".."9"+
+SPACE: /[\s]+/
+SIGN: "-" | "+"
+DOT: "."
+WORD: /[^\s\d\.+-]/+
+
+int.2: SIGN? INTEGER
+float.3: SIGN? INTEGER? DOT INTEGER
+word: WORD | SIGN DOT? | DOT
+space: SPACE
+'''
 
 
 class TokenType(Enum):
@@ -106,6 +123,7 @@ class SmartGrader():
         self.student_results = student_results
         self.grader_tokens = None
         self.student_tokens = None
+        self._lexer = Lark(TOKEN_GRAMMER, parser="lalr")
 
 
     def load_settings(self, penalties={}, penalty_weight=0.1, pass_threshold=95, collapse_whitespace=True, all_tokens_strings=False, ignore_nonnumeric_tokens=False, enforce_floating_point=False,  language='java', connect_adjacent_words=False, grader_directory='Grader', student_directory='Student', **kwargs):
@@ -296,7 +314,7 @@ class SmartGrader():
                 #   will almost be the same as the percent difference, but doesn't have the unfortunate side effect
                 #   of blowing up in a nasty way as it gets close to zero
                 if isinstance(grader_value, (float, int)):
-                    scale = log(cosh(grader_value)) + 0.25 if abs(grader_value) < 0.292055305409401 else grader_value
+                    scale = log(cosh(grader_value)) + 0.25 if abs(grader_value) < 0.292055305409401 else abs(grader_value)
                     total_error += self.numeric_penalty * abs(grader_value - student_value) / scale
 
                 # If they are strings, the penalty will be proportional to the number of characters that are different
@@ -362,29 +380,32 @@ class SmartGrader():
         """
 
         tokens = []
-        token_value = ''
         token_start = 0
 
-        for i, c in enumerate(string):
-            current_token_type = TokenType.get_type(token_value)
-            future_token_type = TokenType.get_type(token_value + c)
-            force_break = current_token_type != TokenType.whitespace and c.isspace()
-            token_type_changed = current_token_type not in (TokenType.none, future_token_type)
-            token_type_changed = token_type_changed and (current_token_type != TokenType.integer or future_token_type != TokenType.float)
+        if PRINT_LEXER:
+            print(f'Preparing to extract lexical tokens from {string}')
 
-            if not token_type_changed and not force_break:
-                token_value += c
+        lark_tokens = self._lexer.parse(string)
 
+        if PRINT_LEXER:
+            print(lark_tokens.pretty())
+
+        for i in lark_tokens.children:
+            if i.data == 'word':
+                token_type = TokenType.word
+            elif i.data == 'int':
+                token_type = TokenType.integer
+            elif i.data == 'float':
+                token_type = TokenType.floating
+            elif i.data == 'space':
+                token_type = TokenType.whitespace
             else:
-                if current_token_type in (TokenType.integer, TokenType.floating) and self.all_tokens_strings:
-                    current_token_type = TokenType.word
+                token_type = TokenType.none
 
-                tokens.append(Token(token_value, token_start, i, current_token_type))
-                token_value = c
-                token_start = i
+            token_value = ''.join(t.value for t in i.children)
 
-        if TokenType.get_type(token_value) != TokenType.none:
-            tokens.append(Token(token_value, token_start, len(string), TokenType.get_type(token_value)))
+            tokens.append(Token(token_value, token_start,  token_start + len(token_value), token_type))
+            token_start += len(token_value)
 
         return tokens
 
