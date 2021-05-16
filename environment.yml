@@ -1,5 +1,6 @@
 name: autograder
 channels:
+  - conda-forge
   - defaults
 dependencies:
   - _libgcc_mutex=0.1=main
@@ -123,6 +124,7 @@ dependencies:
   - keyring=22.3.0=py38h06a4308_0
   - kiwisolver=1.3.1=py38h2531618_0
   - krb5=1.18.2=h173b8e3_0
+  - lark-parser=0.11.3=pyhd8ed1ab_0
   - lazy-object-proxy=1.6.0=py38h27cfd23_0
   - lcms2=2.12=h3be6417_0
   - ld_impl_linux-64=2.33.1=h53a641e_7

@@ -114,6 +114,7 @@ and the important tokens will not be detected.
 There are several python libraries required to run the autograder. They are:
 
 - **binaryornot** (Used to check if a file is binary): `conda install binaryornot` or `pip install binaryornot`
+- **lark** (Used to parse student output): `conda install -c conda-forge lark-parser` or `pip install lark-parser`
 - **pygments** (Used for syntax highlighting): `conda install pygments` or `pip install Pygments`
 - **tqdm** (Used for progress bars): `conda install tqdm` or `pip install tqdm`
 
@@ -125,6 +126,5 @@ An exported yaml of the conda environment used to develop the autograder can be 
 - A web interface for grading. Upload config, Grader, and Student zip and go
 - Add a similar field to the `required_strings` that can be used to specify a list of regexes that need to match the student output
 - Add another thing kinda like `required_strings`, only that all it does is that it automatically flags any matching text as a token
-- The process of breaking the ouput into tokens still leaves a bit to be desired
 - The ability to capture and display the stdin and stdout of the program alongside each other. The stdout will need to be unbuffered to do this. Look at pty?
 - A prompt to display the student's code after inspecting incorrect results?
