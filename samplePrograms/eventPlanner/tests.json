@@ -1,0 +1,42 @@
+{
+    "settings": {
+        "penalties": {
+            "numeric_penalty": 1000,
+            "character_penalty": 1,
+            "run_failure_penalty": 100
+        },
+
+        "grader_directory": "Grader",
+        "student_directory": "Student"
+    },
+    "tests": [
+        {
+            "description": "Test the example given in the project description",
+            "stdin": "10\n4\n"
+        },
+        {
+            "description": "Twenty two people, each bring one guest",
+            "stdin": "22\n1\n"
+        },
+        {
+            "description": "Twelve people, each bring twelve guests",
+            "stdin": "12\n12\n"
+        },
+        {
+            "description": "Seven people, each bring five guests",
+            "stdin": "7\n5\n"
+        },
+        {
+            "description": "Big party :)",
+            "stdin": "137\n11\n"
+        },
+        {
+            "description": "No guests",
+            "stdin": "17\n0\n"
+        },
+        {
+            "description": "No guests part 2",
+            "stdin": "3456\n0\n"
+        }
+    ]
+}

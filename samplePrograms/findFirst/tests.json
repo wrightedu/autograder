@@ -1,0 +1,57 @@
+{
+    "settings": {
+        "penalties": {
+            "type_penalty": 1,
+            "token_count_penalty": 0,
+            "numeric_penalty": 1000,
+            "character_penalty": 1,
+            "run_failure_penalty": 100
+        },
+
+        "pass_threshold": 100,
+        "grader_directory": "Grader",
+        "student_directory": "Student"
+    },
+    "tests": [
+        {
+            "description": "Test the example given in the project description",
+            "stdin": "20 14 56 23 57 2 90 14 10 3\n14\n"
+        },
+        {
+            "description": "Test some random numbers",
+            "stdin":  "12 84 145 -6 69 45 0 234 -245 -12\n69\n"
+        },
+        {
+            "description": "Test finding the first index of duplicate numbers",
+            "stdin":  "2346 20 42 42 42 42 42 42 42 42\n42\n"
+        },
+        {
+            "description": "Test a number that isn't found",
+            "stdin":  "0 1 2 3 4 5 6 7 8 9\n12\n"
+        },
+        {
+            "description": "Test a whole buncha random stuff that doesn't get found",
+            "stdin":  "345676 -3256437 328743 7867 2184323 -328 986 -2 1475 12235\n12235\n"
+        },
+        {
+            "description": "Try to break string comparison",
+            "stdin": "-1 -11 -111 -1111 -11111 -111111 -1111111 -11111111 -111111111 -1111111111\n-11111\n"
+        },
+        {
+            "description": "Bimodal",
+            "stdin": "4 3 2 1 0 1 2 3 4 5\n2\n"
+        },
+        {
+            "description": "Last index",
+            "stdin": "12 435 5641 1234 234 3675 235 1 8 657\n657\n"
+        },
+        {
+            "description": "Same as last index test, but find not found",
+            "stdin": "12 435 5641 1234 234 3675 235 1 8 657\n6527\n"
+        },
+        {
+            "description": "Try to confuse negatives and positives",
+            "stdin": "-1 -2 -3 -4 -5 -6 -7 8 -9 -10\n-8\n"
+        }
+    ]
+}
