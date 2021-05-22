@@ -4,21 +4,11 @@
 import re as re
 from difflib import ndiff
 from enum import Enum
-from functools import reduce
 from math import cosh, exp, log
 
 from lark import Lark
 
-from program import TestCase, TestResult
-from utils import print_formatted_text
-
-# These are all debug flags
-DEBUG = False
-PRINT_COMBINED = DEBUG or False
-PRINT_LINES = DEBUG or False
-PRINT_OUTPUTS = DEBUG or False
-PRINT_TOKENS = DEBUG or False
-PRINT_LEXER = DEBUG or False
+# from WSUAutograder import TestCase, TestResult
 
 TOKEN_GRAMMER = '''
 start: (float | int | word | space)*
@@ -182,15 +172,6 @@ class SmartGrader():
         if len(self.grader_results) != len(self.student_results):
             raise ValueError("Grader and Student must have the same number of test cases")
 
-        if PRINT_OUTPUTS:
-            print('\n ----- GRADER OUTPUTS -----')
-            for i in self.grader_results:
-                print(i.stdout)
-            print('\n ----- STUDENT OUTPUTS -----')
-            for i in self.student_results:
-                print(i.stdout)
-            print('\n\n')
-
         # Fill in the arrays with empty values
         self.grader_tokens = [None] * len(self.grader_results)
         self.student_tokens = [None] * len(self.student_results)
@@ -201,33 +182,9 @@ class SmartGrader():
 
         # Generate all of the token vectors
         for i in range(len(self.grader_results)):
-            if DEBUG:
-                print(f'\n\n\n ---------- TEST CASE {i} ----------\n\n')
             for j in range(len(self.grader_results)):
                 self.grader_tokens[i][j] = self.token_vectors_by_line(self.grader_results[i].stdout, self.grader_results[j].stdout)
                 self.student_tokens[i][j] = self.token_vectors_by_line(self.student_results[i].stdout, self.student_results[j].stdout)
-
-        if PRINT_TOKENS:
-            print(' -------- GRADER TOKENS --------')
-            for i in range(len(self.grader_results)):
-                print(f'  Test case {i}')
-                for j in range(len(self.grader_results)):
-                    print('    [', end='')
-                    for t in self.grader_tokens[i][j]:
-                        print(f'{str(t)}', end=', ')
-                    print(']')
-
-            print(' -------- STUDENT TOKENS --------')
-            for i in range(len(self.grader_results)):
-                print(f'  Test case {i}')
-                for j in range(len(self.grader_results)):
-                    print('    [', end='')
-                    for t in self.student_tokens[i][j]:
-                        print(f'{str(t)}', end=', ')
-                    print(']')
-
-            print('\n\n')
-
 
     def get_combined_vectors(self, test_case_num, mask_array=None):
         if mask_array is None:
@@ -246,14 +203,6 @@ class SmartGrader():
             combined_student_vectors.extend(vect)
         combined_student_vectors = list(set(combined_student_vectors))
         combined_student_vectors.sort()
-
-        if DEBUG or PRINT_COMBINED:
-            for i in combined_grader_vectors:
-                print(str(i), end=',')
-            print()
-            for i in combined_student_vectors:
-                print(str(i), end=',')
-            print()
 
         return combined_grader_vectors, combined_student_vectors
 
@@ -382,13 +331,7 @@ class SmartGrader():
         tokens = []
         token_start = 0
 
-        if PRINT_LEXER:
-            print(f'Preparing to extract lexical tokens from {string}')
-
         lark_tokens = self._lexer.parse(string)
-
-        if PRINT_LEXER:
-            print(lark_tokens.pretty())
 
         for i in lark_tokens.children:
             if i.data == 'word':
@@ -485,10 +428,6 @@ class SmartGrader():
 
         diff_lines = list(map(lambda x: (x[0].replace('\n', ''), '' if x[1] is None else x[1].replace('\n', '')), diff_lines))
 
-        if PRINT_LINES:
-            for line in diff_lines:
-                print(f'{line[0]} <-> {line[1]}')
-
         line_start = 0
         tokens = []
 
@@ -500,8 +439,6 @@ class SmartGrader():
                 tokens.append(token)
             line_start += len(line[0]) + 1
 
-        if DEBUG:
-            print('\n')
         return tokens
 
 
@@ -520,10 +457,6 @@ class SmartGrader():
 
         possible_tokens = list(filter(lambda x: not(x.token_type == TokenType.whitespace and self.collapse_whitespace), self._split_tokens(line_a)))
         possible_tokens = list(filter(lambda x: x.token_type in (TokenType.integer, TokenType.floating) or not self.ignore_nonnumeric_tokens, possible_tokens))
-
-        if PRINT_TOKENS:
-            print(f'Tokenization of {line_a.replace}:')
-            print_formatted_text('\033[1m|\033[0m'.join((line_a[i.start:i.end] for i in possible_tokens)))
 
         first_difference = self._get_first_diff(line_a, line_b, possible_tokens)
         last_difference = self._get_last_diff(line_a, line_b, possible_tokens)
@@ -546,13 +479,6 @@ class SmartGrader():
             elif diff[0] == '+' and len(diffs) > 0:
                 diffs[-1] = True
 
-        if PRINT_TOKENS:
-            print_formatted_text(f'\033[2m{line_a[:first_difference]}\033[0m', end='')
-            for diff, c in zip(diffs, trimmed_line_a):
-                print_formatted_text(f'\033[1m{c}\033[0m' if diff else c, end='')
-            if last_difference != 0:
-                print_formatted_text(f'\033[2m{line_a[last_difference:]}\033[0m', end='')
-
         token_vector = []
 
         for token in possible_tokens:
@@ -568,9 +494,6 @@ class SmartGrader():
                         token_vector.append(token)
                 else:
                     token_vector.append(token)
-
-        if PRINT_TOKENS:
-            print_formatted_text('\033[1m|\033[0m'.join((f'\033[1m{i.value}\033[0m' if i in token_vector else i.value for i in possible_tokens))) 
 
         for token in token_vector:
             if token.token_type == TokenType.integer:

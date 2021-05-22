@@ -15,13 +15,17 @@ the project description and the student program without the need to construct hu
 
 ## Usage
 
+### Installation 
+
+Currently working on getting a PyPI package setup. When it's done, you will be able to install the autograder using `pip install wsu-autograder`
+
 ### CLI Options
 
 - `-c`, `--config`: Path to a json containing the grading parameters and test cases
 - `-s`, `--student-directory`: Path to a student directory. Instead of grading all student submissions, only grade the one specified
 - `-n`, `--no-cat`: Boolean flag. If present, the student code isn't displayed and all test cases are run automatically
 
-Standard usage is `python main.py -c path/to/config.json`
+Standard usage is `autograder -c path/to/config.json`
 
 ### JSON Structure
 

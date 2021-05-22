@@ -1,2 +1,6 @@
-.vscode
+.vscode/
+build/
+dist/
 __pycache__/
+WSUAutograder/autograder.bak
+wsu_autograder.egg-info/
